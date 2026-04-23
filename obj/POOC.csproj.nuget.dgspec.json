@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\POOC\\POOC\\POOC.csproj": {}
+    "D:\\POOC\\POOC\\POOC.csproj": {}
   },
   "projects": {
-    "d:\\POOC\\POOC\\POOC.csproj": {
+    "D:\\POOC\\POOC\\POOC.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\POOC\\POOC\\POOC.csproj",
+        "projectUniqueName": "D:\\POOC\\POOC\\POOC.csproj",
         "projectName": "POOC",
-        "projectPath": "d:\\POOC\\POOC\\POOC.csproj",
+        "projectPath": "D:\\POOC\\POOC\\POOC.csproj",
         "packagesPath": "C:\\Users\\SCTPPC\\.nuget\\packages\\",
-        "outputPath": "d:\\POOC\\POOC\\obj\\",
+        "outputPath": "D:\\POOC\\POOC\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
