@@ -44,6 +44,19 @@ public class LoanController : Controller
     [HttpPost]
     public IActionResult Create([FromBody] LoanRequest model)
     {
+        if (model == null)
+        {
+            return Json(new { success = false, message = "ไม่มีข้อมูล" });
+        }
+        if (model.Amount <= 0 || model.Months <= 0)
+        {
+            return Json(new { success = false, message = "กรุณากรอกข้อมูลให้ถูกต้อง" });
+        }
+
+        if (model.Rate < 0)
+        {
+            return Json(new { success = false, message = "ดอกเบี้ยต้องไม่ติดลบ" });
+        }
         var loan = new Loan
         {
             MemberId = model.MemberId,

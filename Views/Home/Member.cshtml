@@ -374,6 +374,8 @@ function saveLoan() {
             
             // โหลดข้อมูลจริง
             loadLoanHistory(memberId);
+            } else {
+                alert(res.message);
         }
     });
 }
