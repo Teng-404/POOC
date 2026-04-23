@@ -15,8 +15,14 @@
 
             <h3 class="text-center">Member List</h3>
 
+            <!-- SEARCH -->
+            <input type="text" id="searchBox"
+                class="form-control mb-2"
+                placeholder="ค้นหาสมาชิก..."
+                onkeyup="searchMember()" />
+
             <!-- ADD MEMBER -->
-            <<form asp-action="Add" asp-controller="Member" method="post" class="row g-2 mt-3">
+            <form asp-action="Add" asp-controller="Member" method="post" class="row g-2 mt-3">
                 <div class="col-md-4">
                     <input type="text" name="firstName" class="form-control" placeholder="ชื่อ" required />
                 </div>
@@ -239,6 +245,60 @@ function addMember(e) {
             alert(res.message);
         }
     });
+}
+
+let timer;
+
+function searchMember() {
+    clearTimeout(timer);
+
+    timer = setTimeout(() => {
+        let keyword = document.getElementById("searchBox").value;
+
+        fetch('/Member/Search?keyword=' + keyword)
+        .then(res => res.json())
+        .then(data => {
+
+            let html = "";
+
+            if (!data || data.length === 0) {
+                html = `<tr><td colspan="5" class="text-center">ไม่พบข้อมูล</td></tr>`;
+            }
+
+            data.forEach((m, i) => {
+                html += `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${m.firstName}</td>
+                    <td>${m.lastName}</td>
+                    <td>${m.role}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editModal"
+                            onclick="openEdit('${m.id}','${m.firstName}','${m.lastName}','${m.role}')">
+                            แก้ไข
+                        </button>
+
+                        <button class="btn btn-info btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#loanModal"
+                            onclick="openLoan(${m.id},'${m.firstName}','${m.lastName}')">
+                            เงินกู้
+                        </button>
+
+                        <form method="post" action="/Member/Delete" style="display:inline;">
+                            <input type="hidden" name="id" value="${m.id}" />
+                            <button class="btn btn-danger btn-sm">ลบ</button>
+                        </form>
+                    </td>
+                </tr>`;
+            });
+
+            document.querySelector("table tbody").innerHTML = html;
+        });
+
+    }, 300);
 }
 
 function openEdit(id, firstName, lastName, role) {

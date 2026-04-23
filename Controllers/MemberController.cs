@@ -71,4 +71,22 @@ public class MemberController : Controller
 
         return RedirectToAction("Index");
     }
+    [HttpGet]
+    public IActionResult Search(string keyword)
+    {
+        var members = _context.Members
+            .Where(x => string.IsNullOrEmpty(keyword)
+                || x.FirstName.Contains(keyword)
+                || x.LastName.Contains(keyword)
+                || x.Role.Contains(keyword))
+            .Select(x => new {
+                x.Id,
+                x.FirstName,
+                x.LastName,
+                x.Role
+            })
+            .ToList();
+
+        return Json(members);
+    }
 }
