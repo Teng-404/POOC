@@ -1,0 +1,89 @@
+﻿@{
+    ViewData["Title"] = "Calculator";
+}
+<div class="text-center">
+    <h1 class="display-4">Calculator</h1>
+<div class="contaniner mt-4">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">คำนวณพื้นที่สี่เหลี่ยม</h5>
+                    <form asp-action="Index" method="post">
+                        <input type="number" name="width" class="form-control mb-2" placeholder="Enter width" />
+                        <input type="number" name="length" class="form-control mb-2" placeholder="Enter length" />
+                        <button type="submit" class="btn btn-primary w-100 btn-animate">คำนวณ</button>
+                    </form>
+                    @if (ViewBag.SquareResult > 0)
+                        {
+                            <div class="alert alert-success mt-3">
+                            <h5>พื้นที่ของสี่เหลี่ยมคือ @ViewBag.SquareResult</h5>
+                            </div>
+                        }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">คำนวณพื้นที่วงกลม</h5>
+                    <form asp-action="Index" method="post">
+                        <input type="number" name="radius" class="form-control mb-2" placeholder="Enter radius" />
+                        <button type="submit" class="btn btn-primary w-100 btn-animate">คำนวณ</button>
+                    </form>
+                    @if (ViewBag.CircleResult > 0)
+                        {
+                            <div class="alert alert-success mt-3">
+                            <h5>พื้นที่ของวงกลมคือ @ViewBag.CircleResult</h5>
+                            </div>
+                       }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">คำนวณพื้นที่กรวย</h5>
+                    <form asp-action="Index" method="post">
+                        <input type="number" name="coneRadius" class="form-control mb-2" placeholder="Enter radius" />
+                        <input type="number" name="coneHeight" class="form-control mb-2" placeholder="Enter height" />
+                        <button type="submit" class="btn btn-primary w-100 btn-animate">คำนวณ</button>
+                    </form>
+                    @if (ViewBag.ConeResult > 0)
+                    {
+                        <div class="alert alert-success mt-3">
+                            <h5>พื้นที่ของกรวยคือ @ViewBag.ConeResult</h5>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-12">
+            <div class="card shadow-sm bg-light">
+                <div class="card-body">
+                    <h3>ประวัติการคำนวณ</h3>
+                    @if (ViewBag.History != null && ((List<string>)ViewBag.History).Count > 0)
+                    {
+                        <form asp-action="ClearHistory" method="post" class="mb-3">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">ล้างประวัติ</button>
+                        </form>
+                        <div class="list-group">
+                            @foreach (var item in (List<string>)ViewBag.History)
+                            {
+                                <div class="list-group-item list-group-item-action">
+                                    <i class="bi bi-clock-history"></i> @item
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light text-center">ไม่มีประวัติการคำนวณ</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

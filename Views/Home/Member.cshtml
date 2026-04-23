@@ -1,0 +1,358 @@
+﻿@model POOC.Models.MemberViewModel
+
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#memberTab">สมาชิก</button>
+    </li>
+</ul>
+
+<div class="tab-content mt-3">
+
+<!-- ================= MEMBER ================= -->
+    <div class="tab-pane fade show active" id="memberTab">
+
+        <div class="container mt-4">
+
+            <h3 class="text-center">Member List</h3>
+
+            <!-- ADD MEMBER -->
+            <<form asp-action="Add" asp-controller="Member" method="post" class="row g-2 mt-3">
+                <div class="col-md-4">
+                    <input type="text" name="firstName" class="form-control" placeholder="ชื่อ" required />
+                </div>
+
+                <div class="col-md-4">
+                    <input type="text" name="lastName" class="form-control" placeholder="นามสกุล" required />
+                </div>
+
+                <div class="col-md-3">
+                    <input type="text" name="role" class="form-control" placeholder="บทบาท" required />
+                </div>
+
+                <div class="col-md-1">
+                    <button class="btn btn-primary w-100">+</button>
+                </div>
+            </form>
+
+            <!-- TABLE -->
+            <table class="table table-bordered mt-4">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>ชื่อ</th>
+                        <th>นามสกุล</th>
+                        <th>บทบาท</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (Model.Members != null && Model.Members.Count > 0)
+                    {
+                        for (int i = 0; i < Model.Members.Count; i++)
+                        {
+                            var m = Model.Members[i];
+
+                            <tr>
+                                <td>@(i + 1)</td>
+
+                                <td>@m.FirstName</td>
+                                <td>@m.LastName</td>
+                                <td>@m.Role</td>
+
+                                <td>
+
+                                    <!-- EDIT -->
+                                    <button class="btn btn-warning btn-sm"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editModal"
+                                            onclick="openEdit('@m.Id','@m.FirstName','@m.LastName','@m.Role')">
+                                        แก้ไข
+                                    </button>
+
+                                    <!-- LOAN -->
+                                    <button class="btn btn-info btn-sm"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#loanModal"
+                                            onclick="openLoan(@m.Id,'@m.FirstName','@m.LastName')">
+                                        เงินกู้
+                                    </button>
+
+                                    <!-- DELETE -->
+                                    <form asp-action="Delete" asp-controller="Member"
+                                          method="post"
+                                          style="display:inline;"
+                                          onsubmit="return confirm('ยืนยันการลบข้อมูล?');">
+
+                                        <input type="hidden" name="id" value="@m.Id" />
+                                        <button class="btn btn-danger btn-sm">ลบ</button>
+                                    </form>
+
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center">ไม่มีข้อมูล</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+<!-- ================= EDIT MODAL ================= -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <form asp-action="Update" asp-controller="Member" method="post">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">แก้ไขสมาชิก</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <input type="hidden" id="editId" name="Id" />
+
+                    <div class="mb-2">
+                        <label>ชื่อ</label>
+                        <input type="text" id="editFirstName" name="FirstName" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>นามสกุล</label>
+                        <input type="text" id="editLastName" name="LastName" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>บทบาท</label>
+                        <input type="text" id="editRole" name="Role" class="form-control" />
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                    <button type="submit" class="btn btn-success">บันทึก</button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- ================= LOAN MODAL ================= -->
+<div class="modal fade" id="loanModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    ตารางเงินกู้ของ <span id="loanName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <!-- FORM LOAN -->
+                <form onsubmit="loadSchedule(event)">
+
+                    <input type="hidden" id="loanMemberId" />
+
+                    <div class="row g-2">
+
+                        <div class="col-md-4">
+                            <input type="number" step="0.01" name="amount" class="form-control" placeholder="เงินกู้" required />
+                        </div>
+
+                        <div class="col-md-4">
+                            <input type="number" step="0.01" name="rate" class="form-control" placeholder="ดอกเบี้ย (%)" required />
+                        </div>
+
+                        <div class="col-md-4">
+                            <input type="number" name="months" class="form-control" placeholder="งวด" required />
+                        </div>
+
+                    </div>
+
+                    <button class="btn btn-success mt-2">คำนวณ</button>
+
+                </form>
+
+                <hr />
+
+                <!-- TABLE AJAX -->
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>งวด</th>
+                            <th>ค่างวด</th>
+                            <th>เงินต้น</th>
+                            <th>ดอกเบี้ย</th>
+                            <th>คงเหลือ</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="loanTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center">ยังไม่มีข้อมูล</td>
+                        </tr>
+                    </tbody>
+
+                </table>
+                <button class="btn btn-primary mt-2" onclick="saveLoan()">บันทึก</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ================= JS ================= -->
+<script>
+function openEdit(id, firstName, lastName, role) {
+    document.getElementById("editId").value = id;
+    document.getElementById("editFirstName").value = firstName;
+    document.getElementById("editLastName").value = lastName;
+    document.getElementById("editRole").value = role;
+}
+
+function openLoan(id, firstName, lastName) {
+    document.getElementById("loanMemberId").value = id;
+    document.getElementById("loanName").innerText = firstName + " " + lastName;
+
+    document.getElementById("loanTableBody").innerHTML =
+        "<tr><td colspan='5' class='text-center'>กรอกข้อมูลแล้วกดคำนวณ</td></tr>";
+    loadLoanHistory(id);
+}
+
+function loadSchedule(e) {
+    e.preventDefault();
+
+    let memberId = parseInt(document.getElementById("loanMemberId").value);
+
+    let amount = e.target.amount.value;
+    let rate = e.target.rate.value;
+    let months = e.target.months.value;
+
+    // เปลี่ยนข้อความ
+    document.getElementById("loanTableBody").innerHTML =
+        "<tr><td colspan='5' class='text-center'>กำลังคำนวณ...</td></tr>";
+
+    // เรียก API คำนวณ ไม่ใช่ Create
+    fetch(`/Loan/GetLoanSchedule?memberId=${memberId}&amount=${amount}&rate=${rate}&months=${months}`)
+    .then(res => res.json())
+    .then(data => {
+
+        let html = "";
+
+        data.forEach(x => {
+            html += `
+            <tr>
+                <td>${x.installment}</td>
+                <td>${x.payment.toFixed(2)}</td>
+                <td>${x.principal.toFixed(2)}</td>
+                <td>${x.interest.toFixed(2)}</td>
+                <td>${x.balance.toFixed(2)}</td>
+            </tr>`;
+        });
+
+        document.getElementById("loanTableBody").innerHTML = html;
+    });
+}
+
+function saveLoan() {
+
+    let memberId = parseInt(document.getElementById("loanMemberId").value);
+
+    let amount = document.querySelector("input[name='amount']").value;
+    let rate = document.querySelector("input[name='rate']").value;
+    let months = document.querySelector("input[name='months']").value;
+
+    fetch('/Loan/Create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId, amount, rate, months })
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.success) {
+            alert("บันทึกสำเร็จ");
+
+            let memberId = document.getElementById("loanMemberId").value;
+            
+            // โหลดข้อมูลจริง
+            loadLoanHistory(memberId);
+        }
+    });
+}
+
+function loadLoanHistory(memberId) {
+
+    fetch('/Loan/GetLoanHistory?memberId=' + memberId)
+    .then(res => res.json())
+    .then(data => {
+
+        console.log("DATA =", data);
+
+        let html = "";
+
+        if (!data || data.length === 0) {
+            document.getElementById("loanTableBody").innerHTML =
+                "<tr><td colspan='5' class='text-center'>ไม่มีข้อมูล</td></tr>";
+            return;
+        }
+
+        data.forEach(loan => {
+
+            html += `
+                <tr style="background:#eee">
+                    <td colspan="5">
+                        เงินกู้: ${loan.amount} | ดอกเบี้ย: ${loan.rate}% | งวด: ${loan.months}
+                        <button class="btn btn-danger btn-sm"
+                            onclick="deleteLoan(${loan.id})">ลบ</button>
+                    </td>
+                </tr>`;
+
+            loan.loanDetails.forEach(d => {
+                html += `
+                <tr>
+                    <td>${d.installment}</td>
+                    <td>${d.payment.toFixed(2)}</td>
+                    <td>${d.principal.toFixed(2)}</td>
+                    <td>${d.interest.toFixed(2)}</td>
+                    <td>${d.balance.toFixed(2)}</td>
+                </tr>`;
+            });
+        });
+
+        document.getElementById("loanTableBody").innerHTML = html;
+    });
+}
+
+function deleteLoan(id) {
+
+    if (!confirm("ลบรายการเงินกู้ทั้งหมดใช่ไหม?")) return;
+
+    fetch('/Loan/Delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.success) {
+            let memberId = document.getElementById("loanMemberId").value;
+            loadLoanHistory(memberId);
+        }
+    });
+}
+</script>
