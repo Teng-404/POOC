@@ -17,4 +17,10 @@ namespace POOC.Models
         [Required]
         public string Role { get; set; } = string.Empty;
     }
+    public class MemberViewModel
+    {
+        public List<Member> Members { get; set; } = new();
+        public List<Loan> Loans { get; set; } = new();
+        public List<LoanSchedule> Schedule { get; set; } = new();
+    }
 }

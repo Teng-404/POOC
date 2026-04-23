@@ -68,7 +68,6 @@ Models/
  ErrorViewModel.cs
  Loan.cs
  Member.cs
- MemberViewModel.cs
 obj/Debug/net9.0/
  .NETCoreApp,Version=v9.0.AssemblyAttributes.cs
  POOC.AssemblyInfo.cs
