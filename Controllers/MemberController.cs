@@ -26,12 +26,19 @@ public class MemberController : Controller
     [HttpPost]
     public IActionResult Add(Member model)
     {
+        var exists = _context.Members
+        .Any(x => x.FirstName == model.FirstName && x.LastName == model.LastName);
+
+        if (exists)
+        {
+            TempData["error"] = "มีสมาชิกนี้อยู่แล้ว";
+            return RedirectToAction("Index");
+        }
         _context.Members.Add(model);
         _context.SaveChanges();
 
         return RedirectToAction("Index");
     }
-
     // UPDATE
     [HttpPost]
     public IActionResult Update(Member model)

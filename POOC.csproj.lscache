@@ -61,6 +61,8 @@ Data/ApplicationDbContext.cs
 Migrations/
  20260422060941_InitDB.cs
  20260422060941_InitDB.Designer.cs
+ 20260423061839_AddUniqueMember.cs
+ 20260423061839_AddUniqueMember.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  ErrorViewModel.cs

@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace POOC.Models
 {
+    [Index(nameof(FirstName), nameof(LastName), IsUnique = true)]
     public class Member
     {
         public int Id { get; set; }

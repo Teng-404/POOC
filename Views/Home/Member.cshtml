@@ -218,6 +218,29 @@
 
 <!-- ================= JS ================= -->
 <script>
+function addMember(e) {
+    e.preventDefault();
+
+    let firstName = document.querySelector("input[name='firstName']").value;
+    let lastName = document.querySelector("input[name='lastName']").value;
+    let role = document.querySelector("input[name='role']").value;
+
+    fetch('/Member/Add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName, role })
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.success) {
+            alert("เพิ่มสำเร็จ");
+            location.reload();
+        } else {
+            alert(res.message);
+        }
+    });
+}
+
 function openEdit(id, firstName, lastName, role) {
     document.getElementById("editId").value = id;
     document.getElementById("editFirstName").value = firstName;
