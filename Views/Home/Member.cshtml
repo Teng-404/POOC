@@ -408,6 +408,16 @@ function loadLoanHistory(memberId) {
                 </tr>`;
 
             loan.loanDetails.forEach(d => {
+                let statusContent = "";
+    
+                // 1. เช็คสถานะ (ตัวพิมพ์เล็ก isPaid ตาม JSON)
+                if (d.isPaid) {
+                    statusContent = `<span class="badge bg-success">จ่ายแล้ว</span>`;
+                } else {
+                    statusContent = `<button class="btn btn-sm btn-primary" onclick="payMoney(${d.id})">จ่ายเงิน</button>`;
+                }
+
+                // 2. ต่อข้อความ HTML (ต้องมี html += และปิดกรงเล็บ ` ให้ครบ)
                 html += `
                 <tr>
                     <td>${d.installment}</td>
@@ -415,6 +425,7 @@ function loadLoanHistory(memberId) {
                     <td>${d.principal.toFixed(2)}</td>
                     <td>${d.interest.toFixed(2)}</td>
                     <td>${d.balance.toFixed(2)}</td>
+                    <td>${statusContent}</td>
                 </tr>`;
             });
         });
@@ -437,6 +448,26 @@ function deleteLoan(id) {
         if (res.success) {
             let memberId = document.getElementById("loanMemberId").value;
             loadLoanHistory(memberId);
+        }
+    });
+}
+
+function payMoney(id) {
+    if (!confirm("ยืนยันการชำระเงินงวดนี้?")) return;
+
+    fetch('/Loan/PayInstallment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ detailId: id }) // ส่งเป็น { detailId: 15 }
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.success) {
+            // ดึง memberId เพื่อโหลดตารางใหม่
+            let memberId = document.getElementById("loanMemberId").value;
+            loadLoanHistory(memberId); 
+        } else {
+            alert(res.message || "เกิดข้อผิดพลาดในการบันทึก");
         }
     });
 }

@@ -63,6 +63,10 @@ Migrations/
  20260422060941_InitDB.Designer.cs
  20260423061839_AddUniqueMember.cs
  20260423061839_AddUniqueMember.Designer.cs
+ 20260424033248_AddPaymentStatusToLoanDetail.cs
+ 20260424033248_AddPaymentStatusToLoanDetail.Designer.cs
+ 20260424033645_AddPaymentFields.cs
+ 20260424033645_AddPaymentFields.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  ErrorViewModel.cs

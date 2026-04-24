@@ -125,6 +125,23 @@ public class LoanController : Controller
 
         return Json(new { success = true });
     }
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public IActionResult PayInstallment([FromBody] PayRequest model) // เปลี่ยนมาใช้ Class model
+    {
+        if (model == null || model.DetailId <= 0) 
+            return Json(new { success = false, message = "ข้อมูลไม่ถูกต้อง" });
+
+        var detail = _context.LoanDetails.Find(model.DetailId);
+        if (detail == null) 
+            return Json(new { success = false, message = "ไม่พบข้อมูลงวดนี้" });
+
+        detail.IsPaid = true;
+        detail.PaidDate = DateTime.Now;
+
+        _context.SaveChanges();
+        return Json(new { success = true });
+    }
     [HttpGet]
     public IActionResult GetLoanHistory(int memberId)
     {
@@ -141,13 +158,16 @@ public class LoanController : Controller
             x.Amount,
             x.Rate,
             x.Months,
-            LoanDetails = x.LoanDetails.Select(d => new
+            LoanDetails = x.LoanDetails.OrderBy(d => d.Installment).Select(d => new
             {
+                d.Id,
                 d.Installment,
                 d.Payment,
                 d.Principal,
                 d.Interest,
-                d.Balance
+                d.Balance,
+                d.IsPaid,
+                d.PaidDate
             })
         }));
     }

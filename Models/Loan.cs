@@ -28,6 +28,8 @@ namespace POOC.Models
         public double Principal { get; set; }
         public double Interest { get; set; }
         public double Balance { get; set; }
+        public bool IsPaid { get; set; } = false; 
+        public DateTime? PaidDate { get; set; }    
         
         [JsonIgnore]
         public Loan? Loan { get; set; }
@@ -50,5 +52,9 @@ namespace POOC.Models
     public class DeleteRequest
     {
         public int Id { get; set; }
+    }
+    public class PayRequest
+    {
+        public int DetailId { get; set; }
     }
 }
