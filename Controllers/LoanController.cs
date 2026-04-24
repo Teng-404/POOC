@@ -135,10 +135,37 @@ public class LoanController : Controller
         var detail = _context.LoanDetails.Find(model.DetailId);
         if (detail == null) 
             return Json(new { success = false, message = "ไม่พบข้อมูลงวดนี้" });
+        
+        var previousUnpaid = _context.LoanDetails
+        .Where(x => x.LoanId == detail.LoanId && x.Installment < detail.Installment && !x.IsPaid)
+        .Any();
+
+        if (previousUnpaid) 
+        return Json(new { success = false, message = "กรุณาชำระงวดก่อนหน้าให้ครบถ้วนก่อน" });
 
         detail.IsPaid = true;
         detail.PaidDate = DateTime.Now;
 
+        _context.SaveChanges();
+        return Json(new { success = true });
+    }
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public IActionResult CancelPayment([FromBody] PayRequest model)
+    {
+        var detail = _context.LoanDetails.Find(model.DetailId);
+        if (detail == null) return Json(new { success = false, message = "ไม่พบข้อมูล" });
+
+        // --- เช็คลำดับ: ห้ามยกเลิกงวดก่อนหน้า ถ้ามึงวดหลังจ่ายไปแล้ว ---
+        var nextPaid = _context.LoanDetails
+            .Where(x => x.LoanId == detail.LoanId && x.Installment > detail.Installment && x.IsPaid)
+            .Any();
+
+        if (nextPaid) 
+            return Json(new { success = false, message = "ไม่สามารถยกเลิกได้ เนื่องจากมีการชำระงวดถัดไปแล้ว" });
+
+        detail.IsPaid = false;
+        detail.PaidDate = null;
         _context.SaveChanges();
         return Json(new { success = true });
     }
