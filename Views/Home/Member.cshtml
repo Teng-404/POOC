@@ -401,7 +401,7 @@ function loadLoanHistory(memberId) {
 
             html += `
                 <tr style="background:#eee">
-                    <td colspan="5">
+                    <td colspan="6">
                         เงินกู้: ${loan.amount} | ดอกเบี้ย: ${loan.rate}% | งวด: ${loan.months}
                         <button class="btn btn-danger btn-sm"
                             onclick="deleteLoan(${loan.id})">ลบ</button>
@@ -425,7 +425,7 @@ function loadLoanHistory(memberId) {
                     <td>${d.installment}</td>
                     <td>${d.payment.toFixed(2)}</td>
                     <td>${d.principal.toFixed(2)}</td>
-                    <td>${d.interest.toFixed(2)}</td>
+                    <td>${d.interest > 0 ? d.interest.toFixed(2) : "-"}</td>
                     <td>${d.balance.toFixed(2)}</td>
                     <td>${statusContent}</td>
                 </tr>`;

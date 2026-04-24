@@ -10,21 +10,46 @@ public class LoanController : Controller
     private List<LoanSchedule> CalculateLoan(double amount, double rate, int months)
     {
         var list = new List<LoanSchedule>();
+        double balance = amount; // ประกาศไว้ด้านบนสุดเพื่อให้ใช้ได้ทั้งสองเงื่อนไข
+
+        // --- กรณีไม่มีดอกเบี้ย (0%) ---
+        if (rate == 0)
+        {
+            double payment = Math.Round(amount / months, 2); // ปัดเศษต่อเดือน
+            for (int i = 1; i <= months; i++)
+            {
+                if (i == months) {
+                    payment = balance; // งวดสุดท้ายจ่ายเท่ากับยอดคงเหลือที่เหลืออยู่จริง
+                }
+        
+                balance -= payment;
+                list.Add(new LoanSchedule {
+                    Installment = i,
+                    Payment = payment,
+                    Principal = payment,
+                    Interest = 0,
+                    Balance = Math.Max(0, balance)
+                });
+            }
+            return list;
+        }
+        // --- กรณีมีดอกเบี้ย ---
         double monthlyRate = rate / 100 / 12;
-        double payment = amount * monthlyRate / (1 - Math.Pow(1 + monthlyRate, -months));
-        double balance = amount;
+        double paymentFormula = amount * monthlyRate / (1 - Math.Pow(1 + monthlyRate, -months));
+    
         for (int i = 1; i <= months; i++)
         {
             double interest = balance * monthlyRate;
-            double principal = payment - interest;
+            double principal = paymentFormula - interest;
             balance -= principal;
+        
             list.Add(new LoanSchedule
             {
                 Installment = i,
-                Payment = payment,
+                Payment = paymentFormula,
                 Principal = principal,
                 Interest = interest,
-                Balance = balance < 0 ? 0 : balance
+                Balance = balance < 0.01 ? 0 : balance
             });
         }
         return list;
