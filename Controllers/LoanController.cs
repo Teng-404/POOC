@@ -2,7 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using POOC.Data;
 using POOC.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
+[Authorize]
 public class LoanController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -59,6 +62,8 @@ public class LoanController : Controller
     {
         _context = context;
     }
+    private string GetCurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
     [HttpGet]
     public IActionResult GetLoanSchedule(int memberId, double amount, double rate, int months)
     {
@@ -82,12 +87,14 @@ public class LoanController : Controller
         {
             return Json(new { success = false, message = "ดอกเบี้ยต้องไม่ติดลบ" });
         }
+        var userId = GetCurrentUserId();
         var loan = new Loan
         {
             MemberId = model.MemberId,
             Amount = model.Amount,
             Rate = model.Rate,
-            Months = model.Months
+            Months = model.Months,
+            OwnerId = userId
         };
         Console.WriteLine("SAVE => MemberId: " + model.MemberId);
         _context.Loans.Add(loan);

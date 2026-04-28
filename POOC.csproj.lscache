@@ -54,24 +54,20 @@ TemporaryDependencyNodeTargetIdentifier=net9.0
 
 [sourceFiles]
 Controllers/
+ AuthController.cs
  HomeController.cs
  LoanController.cs
  MemberController.cs
 Data/ApplicationDbContext.cs
 Migrations/
- 20260422060941_InitDB.cs
- 20260422060941_InitDB.Designer.cs
- 20260423061839_AddUniqueMember.cs
- 20260423061839_AddUniqueMember.Designer.cs
- 20260424033248_AddPaymentStatusToLoanDetail.cs
- 20260424033248_AddPaymentStatusToLoanDetail.Designer.cs
- 20260424033645_AddPaymentFields.cs
- 20260424033645_AddPaymentFields.Designer.cs
+ 20260428044441_InitialCreate.cs
+ 20260428044441_InitialCreate.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  ErrorViewModel.cs
  Loan.cs
  Member.cs
+ Model.cs
 obj/Debug/net9.0/
  .NETCoreApp,Version=v9.0.AssemblyAttributes.cs
  POOC.AssemblyInfo.cs
@@ -399,9 +395,11 @@ Program.cs
   Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.dll
   Microsoft.CodeAnalysis.Workspaces.MSBuild.dll
  microsoft.data.sqlclient/5.1.6/ref/net6.0/Microsoft.Data.SqlClient.dll
+ microsoft.data.sqlite.core/9.0.0/lib/net8.0/Microsoft.Data.Sqlite.dll
  microsoft.entityframeworkcore.abstractions/9.0.0/lib/net8.0/Microsoft.EntityFrameworkCore.Abstractions.dll
  microsoft.entityframeworkcore.design/9.0.0/lib/net8.0/Microsoft.EntityFrameworkCore.Design.dll
  microsoft.entityframeworkcore.relational/9.0.0/lib/net8.0/Microsoft.EntityFrameworkCore.Relational.dll
+ microsoft.entityframeworkcore.sqlite.core/9.0.0/lib/net8.0/Microsoft.EntityFrameworkCore.Sqlite.dll
  microsoft.entityframeworkcore.sqlserver/9.0.0/lib/net8.0/Microsoft.EntityFrameworkCore.SqlServer.dll
  microsoft.entityframeworkcore/9.0.0/lib/net8.0/Microsoft.EntityFrameworkCore.dll
  microsoft.extensions.dependencymodel/9.0.0/lib/net9.0/Microsoft.Extensions.DependencyModel.dll
@@ -415,6 +413,9 @@ Program.cs
  microsoft.identitymodel.tokens/6.35.0/lib/net6.0/Microsoft.IdentityModel.Tokens.dll
  microsoft.sqlserver.server/1.0.0/lib/netstandard2.0/Microsoft.SqlServer.Server.dll
  mono.texttemplating/3.0.0/lib/net6.0/Mono.TextTemplating.dll
+ sqlitepclraw.bundle_e_sqlite3/2.1.10/lib/netstandard2.0/SQLitePCLRaw.batteries_v2.dll
+ sqlitepclraw.core/2.1.10/lib/netstandard2.0/SQLitePCLRaw.core.dll
+ sqlitepclraw.provider.e_sqlite3/2.1.10/lib/net6.0/SQLitePCLRaw.provider.e_sqlite3.dll
  system.clientmodel/1.0.0/lib/net6.0/System.ClientModel.dll
  system.codedom/6.0.0/lib/net6.0/System.CodeDom.dll
  system.composition.attributedmodel/7.0.0/lib/net7.0/System.Composition.AttributedModel.dll
@@ -461,25 +462,23 @@ Program.cs
 obj/Debug/net9.0/POOC.GeneratedMSBuildEditorConfig.editorconfig
 
 [additionalFiles]
-Views/Home/
- Index.cshtml
- Member.cshtml
-Views/Shared/
- Error.cshtml
- _Layout.cshtml
- _ValidationScriptsPartial.cshtml
 Views/
+ Auth/Index.cshtml
+ Home/Member.cshtml
+ Shared/
+  Error.cshtml
+  _Layout.cshtml
+  _ValidationScriptsPartial.cshtml
  _ViewImports.cshtml
  _ViewStart.cshtml
 
 [dynamicFiles]
-Views/Home/
- Index.cshtml
- Member.cshtml
-Views/Shared/
- Error.cshtml
- _Layout.cshtml
- _ValidationScriptsPartial.cshtml
 Views/
+ Auth/Index.cshtml
+ Home/Member.cshtml
+ Shared/
+  Error.cshtml
+  _Layout.cshtml
+  _ValidationScriptsPartial.cshtml
  _ViewImports.cshtml
  _ViewStart.cshtml

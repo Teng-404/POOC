@@ -209,7 +209,7 @@
 
                     <tbody id="loanTableBody">
                         <tr>
-                            <td colspan="5" class="text-center">ยังไม่มีข้อมูล</td>
+                            <td colspan="6" class="text-center">ยังไม่มีข้อมูล</td>
                         </tr>
                     </tbody>
 
@@ -312,7 +312,7 @@ function openLoan(id, firstName, lastName) {
     document.getElementById("loanName").innerText = firstName + " " + lastName;
 
     document.getElementById("loanTableBody").innerHTML =
-        "<tr><td colspan='5' class='text-center'>กรอกข้อมูลแล้วกดคำนวณ</td></tr>";
+        "<tr><td colspan='6' class='text-center'>กรอกข้อมูลแล้วกดคำนวณ</td></tr>";
     loadLoanHistory(id);
 }
 
@@ -327,7 +327,7 @@ function loadSchedule(e) {
 
     // เปลี่ยนข้อความ
     document.getElementById("loanTableBody").innerHTML =
-        "<tr><td colspan='5' class='text-center'>กำลังคำนวณ...</td></tr>";
+        "<tr><td colspan='6' class='text-center'>กำลังคำนวณ...</td></tr>";
 
     // เรียก API คำนวณ ไม่ใช่ Create
     fetch(`/Loan/GetLoanSchedule?memberId=${memberId}&amount=${amount}&rate=${rate}&months=${months}`)
@@ -391,7 +391,7 @@ function loadLoanHistory(memberId) {
 
         if (!data || data.length === 0) {
             document.getElementById("loanTableBody").innerHTML =
-                "<tr><td colspan='5' class='text-center'>ไม่มีข้อมูล</td></tr>";
+                "<tr><td colspan='6' class='text-center'>ไม่มีข้อมูล</td></tr>";
             return;
         }
 

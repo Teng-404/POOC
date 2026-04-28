@@ -1,0 +1,68 @@
+﻿@{
+    Layout = null; 
+}
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เข้าสู่ระบบ - POOC</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            background: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="text-center mb-4">
+        <h3 class="fw-bold text-primary">POOC SYSTEM</h3>
+        <p class="text-muted">เข้าสู่ระบบเพื่อจัดการเงินกู้</p>
+    </div>
+
+    <form asp-controller="Auth" asp-action="Login" method="post">
+        
+        @if (ViewBag.Error != null)
+        {
+            <div class="alert alert-danger p-2 small">
+                @ViewBag.Error
+            </div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">ชื่อผู้ใช้งาน</label>
+            <input type="text" name="username" class="form-control" placeholder="ใส่ชื่อผู้ใช้" required autofocus />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">รหัสผ่าน</label>
+            <input type="password" name="password" class="form-control" placeholder="ใส่รหัสผ่าน" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+            เข้าสู่ระบบ
+        </button>
+    </form>
+
+    <div class="text-center mt-3 small">
+        <span class="text-muted">ติดต่อแอดมินหากลืมรหัสผ่าน</span>
+    </div>
+</div>
+
+</body>
+</html>
