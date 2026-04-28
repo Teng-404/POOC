@@ -15,6 +15,6 @@ public class HomeController : Controller
             Members = _context.Members.ToList()
         };
 
-            return View("Member", vm); 
+        return View("Member", vm); 
     }
 }
