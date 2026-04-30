@@ -235,7 +235,6 @@ public class LoanController : Controller
     }
     public IActionResult DownloadContract(int loanId)
     {
-        // 1. ดึงข้อมูลสัญญาและรายละเอียดงวดจาก DB
         var loan = _context.Loans
             .Include(x => x.Member)
             .Include(x => x.LoanDetails)
@@ -243,66 +242,60 @@ public class LoanController : Controller
 
         if (loan == null) return NotFound();
 
-        // 2. สร้าง PDF ด้วย QuestPDF
         var document = Document.Create(container =>
         {
             container.Page(page =>
             {
-                page.Size(PageSizes.A4);
-                page.Margin(1, Unit.Centimetre);
-                page.PageColor(Colors.White);
-                page.DefaultTextStyle(x => x.FontSize(12));
-
-                // ส่วนหัว (Header)
-                page.Header().Text("สัญญาเงินกู้ระบบ POOC").FontSize(20).SemiBold().FontColor(Colors.Blue.Medium);
-
-                // ส่วนเนื้อหา (Content)
                 page.Content().PaddingVertical(10).Column(col =>
                 {
-                    col.Item().Text($"ข้าพเจ้า {loan.Member?.FirstName ?? ""} {loan.Member?.LastName ?? ""} ได้ทำสัญญากู้ยืมเงิน...");
-                    col.Item().Text($"จำนวนเงินต้น: {loan.Amount:N2} บาท  | ดอกเบี้ย: {loan.Rate}%");
+                    col.Item().BorderBottom(1).PaddingBottom(5).Text("รายละเอียดสัญญากู้ยืม").FontSize(14).SemiBold();
                     
-                    col.Item().PaddingTop(10).Text("ตารางการผ่อนชำระ").SemiBold();
-                    
-                    // สร้างตารางงวดชำระ (คล้ายกับตารางในหน้า Member.cshtml ของคุณ)
-                    col.Item().Table(table =>
+                    col.Item().PaddingTop(5).Text(t => {
+                        t.Span("ข้าพเจ้า ");
+                        t.Span($"{loan.Member?.FirstName} {loan.Member?.LastName}").Underline();
+                        t.Span(" ตกลงทำสัญญากู้ยืมเงินจำนวน ");
+                        t.Span($"{loan.Amount:N2} บาท").SemiBold();
+                    });
+
+                    col.Item().PaddingTop(15).Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.ConstantColumn(50); // งวดที่
-                            columns.RelativeColumn();   // เงินต้น
-                            columns.RelativeColumn();   // ดอกเบี้ย
-                            columns.RelativeColumn();   // ยอดชำระ
+                            columns.ConstantColumn(40);  
+                            columns.RelativeColumn();    
+                            columns.RelativeColumn();    
+                            columns.RelativeColumn();    
+                            columns.RelativeColumn();    
                         });
 
                         table.Header(header =>
                         {
-                            header.Cell().Text("งวด");
-                            header.Cell().Text("เงินต้น");
-                            header.Cell().Text("ดอกเบี้ย");
-                            header.Cell().Text("รวมจ่าย");
+                            header.Cell().Element(CellStyle).Text("งวดที่");
+                            header.Cell().Element(CellStyle).Text("เงินต้น");
+                            header.Cell().Element(CellStyle).Text("ดอกเบี้ย");
+                            header.Cell().Element(CellStyle).Text("ยอดจ่าย");
+                            header.Cell().Element(CellStyle).Text("คงเหลือ");
+
+                            static IContainer CellStyle(IContainer container) => 
+                                container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).AlignCenter();
                         });
 
-                        foreach (var detail in loan.LoanDetails)
+                        foreach (var item in loan.LoanDetails.OrderBy(x => x.Installment))
                         {
-                            table.Cell().Text(detail.Installment.ToString());
-                            table.Cell().Text(detail.Principal.ToString("N2"));
-                            table.Cell().Text(detail.Interest.ToString("N2"));
-                            table.Cell().Text(detail.Payment.ToString("N2"));
+                            table.Cell().Element(ContentStyle).Text(item.Installment.ToString());
+                            table.Cell().Element(ContentStyle).Text(item.Principal.ToString("N2"));
+                            table.Cell().Element(ContentStyle).Text(item.Interest.ToString("N2"));
+                            table.Cell().Element(ContentStyle).Text(item.Payment.ToString("N2"));
+                            table.Cell().Element(ContentStyle).Text(item.Balance.ToString("N2"));
+
+                            static IContainer ContentStyle(IContainer container) => 
+                                container.PaddingVertical(2).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).AlignCenter();
                         }
                     });
-                });
-
-                // ส่วนท้าย (Footer)
-                page.Footer().AlignCenter().Text(x =>
-                {
-                    x.Span("หน้า ");
-                    x.CurrentPageNumber();
                 });
             });
         });
 
-        // 3. ส่งไฟล์ออกไปให้ User ดาวน์โหลด
         byte[] pdfBytes = document.GeneratePdf();
         return File(pdfBytes, "application/pdf", $"Contract_{loanId}.pdf");
     }
