@@ -7,6 +7,7 @@ namespace POOC.Models
     {
         public int Id { get; set; }
         public int MemberId { get; set; }
+        public Member? Member { get; set; }
         public double Amount { get; set; }
         public double Rate { get; set; }
         public int Months { get; set; }

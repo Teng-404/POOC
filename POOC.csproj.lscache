@@ -413,6 +413,7 @@ Program.cs
  microsoft.identitymodel.tokens/6.35.0/lib/net6.0/Microsoft.IdentityModel.Tokens.dll
  microsoft.sqlserver.server/1.0.0/lib/netstandard2.0/Microsoft.SqlServer.Server.dll
  mono.texttemplating/3.0.0/lib/net6.0/Mono.TextTemplating.dll
+ questpdf/2026.2.4/lib/net8.0/QuestPDF.dll
  sqlitepclraw.bundle_e_sqlite3/2.1.10/lib/netstandard2.0/SQLitePCLRaw.batteries_v2.dll
  sqlitepclraw.core/2.1.10/lib/netstandard2.0/SQLitePCLRaw.core.dll
  sqlitepclraw.provider.e_sqlite3/2.1.10/lib/net6.0/SQLitePCLRaw.provider.e_sqlite3.dll

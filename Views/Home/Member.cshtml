@@ -395,16 +395,29 @@ function loadLoanHistory(memberId) {
             return;
         }
 
-        data.forEach(loan => {
+            data.forEach(loan => {
+                html += `
+                    <tr style="background:#eee">
+                        <td colspan="6">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>
+                                    <strong>เงินกู้:</strong> ${loan.amount.toLocaleString()} | 
+                                    <strong>ดอกเบี้ย:</strong> ${loan.rate}% | 
+                                    <strong>งวด:</strong> ${loan.months}
+                                </span>
+                                <div>
+                                    <a href="/Loan/DownloadContract?loanId=${loan.id}" 
+                                    target="_blank" 
+                                    class="btn btn-primary btn-sm me-1">
+                                        <i class="fas fa-file-pdf"></i> พิมพ์สัญญา
+                                    </a>
 
-            html += `
-                <tr style="background:#eee">
-                    <td colspan="6">
-                        เงินกู้: ${loan.amount} | ดอกเบี้ย: ${loan.rate}% | งวด: ${loan.months}
-                        <button class="btn btn-danger btn-sm"
-                            onclick="deleteLoan(${loan.id})">ลบ</button>
-                    </td>
-                </tr>`;
+                                    <button class="btn btn-danger btn-sm" 
+                                            onclick="deleteLoan(${loan.id})">ลบ</button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
 
             loan.loanDetails.forEach(d => {
                 let statusContent = "";

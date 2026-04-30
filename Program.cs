@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using POOC.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using POOC.Models;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllersWithViews();
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var app = builder.Build();
 

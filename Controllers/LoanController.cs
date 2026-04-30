@@ -4,6 +4,9 @@ using POOC.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 [Authorize]
 public class LoanController : Controller
@@ -229,5 +232,78 @@ public class LoanController : Controller
                 d.PaidDate
             })
         }));
+    }
+    public IActionResult DownloadContract(int loanId)
+    {
+        // 1. ดึงข้อมูลสัญญาและรายละเอียดงวดจาก DB
+        var loan = _context.Loans
+            .Include(x => x.Member)
+            .Include(x => x.LoanDetails)
+            .FirstOrDefault(x => x.Id == loanId);
+
+        if (loan == null) return NotFound();
+
+        // 2. สร้าง PDF ด้วย QuestPDF
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(1, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(12));
+
+                // ส่วนหัว (Header)
+                page.Header().Text("สัญญาเงินกู้ระบบ POOC").FontSize(20).SemiBold().FontColor(Colors.Blue.Medium);
+
+                // ส่วนเนื้อหา (Content)
+                page.Content().PaddingVertical(10).Column(col =>
+                {
+                    col.Item().Text($"ข้าพเจ้า {loan.Member?.FirstName ?? ""} {loan.Member?.LastName ?? ""} ได้ทำสัญญากู้ยืมเงิน...");
+                    col.Item().Text($"จำนวนเงินต้น: {loan.Amount:N2} บาท  | ดอกเบี้ย: {loan.Rate}%");
+                    
+                    col.Item().PaddingTop(10).Text("ตารางการผ่อนชำระ").SemiBold();
+                    
+                    // สร้างตารางงวดชำระ (คล้ายกับตารางในหน้า Member.cshtml ของคุณ)
+                    col.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(50); // งวดที่
+                            columns.RelativeColumn();   // เงินต้น
+                            columns.RelativeColumn();   // ดอกเบี้ย
+                            columns.RelativeColumn();   // ยอดชำระ
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Text("งวด");
+                            header.Cell().Text("เงินต้น");
+                            header.Cell().Text("ดอกเบี้ย");
+                            header.Cell().Text("รวมจ่าย");
+                        });
+
+                        foreach (var detail in loan.LoanDetails)
+                        {
+                            table.Cell().Text(detail.Installment.ToString());
+                            table.Cell().Text(detail.Principal.ToString("N2"));
+                            table.Cell().Text(detail.Interest.ToString("N2"));
+                            table.Cell().Text(detail.Payment.ToString("N2"));
+                        }
+                    });
+                });
+
+                // ส่วนท้าย (Footer)
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.Span("หน้า ");
+                    x.CurrentPageNumber();
+                });
+            });
+        });
+
+        // 3. ส่งไฟล์ออกไปให้ User ดาวน์โหลด
+        byte[] pdfBytes = document.GeneratePdf();
+        return File(pdfBytes, "application/pdf", $"Contract_{loanId}.pdf");
     }
 }
