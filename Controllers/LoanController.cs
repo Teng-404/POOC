@@ -292,6 +292,27 @@ public class LoanController : Controller
                                 container.PaddingVertical(2).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).AlignCenter();
                         }
                     });
+                    col.Item().AlignRight().Text(t =>
+                    {
+                        t.Span("รวมเงินต้นทั้งสิ้น: ").SemiBold();
+                        t.Span($"{loan.Amount:N2} บาท");
+                    });
+                    col.Item().PaddingTop(30).Row(row =>
+                    {
+                        row.RelativeItem().Column(c =>
+                        {
+                            c.Item().AlignCenter().Text("......................................................");
+                            c.Item().AlignCenter().Text("(ลงชื่อ) ผู้กู้ยืม");
+                            c.Item().AlignCenter().Text($"({loan.Member?.FirstName} {loan.Member?.LastName})");
+                        });
+
+                        row.RelativeItem().Column(c =>
+                        {
+                            c.Item().AlignCenter().Text("......................................................");
+                            c.Item().AlignCenter().Text("(ลงชื่อ) ผู้ให้กู้");
+                            c.Item().AlignCenter().Text($"(......................................................)");
+                        });
+                    });
                 });
             });
         });
