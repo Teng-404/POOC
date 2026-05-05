@@ -246,38 +246,64 @@ public class LoanController : Controller
         {
             container.Page(page =>
             {
+                // ตั้งค่าพื้นฐาน: ใช้ฟอนต์ที่ดูทางการ (ถ้ามีในระบบ) และขอบกระดาษที่เหมาะสม
+                page.Size(PageSizes.A4);
+                page.Margin(1.5f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontFamily("Tahoma").FontSize(11).LineHeight(1.5f));
+
+                // 1. Header: หัวเอกสาร
+                page.Header().Column(col =>
+                {
+                    col.Item().AlignCenter().Text("หนังสือสัญญากู้ยืมเงิน").FontSize(18).SemiBold();
+                    col.Item().AlignRight().Text($"ทำที่: ระบบบริหารจัดการเงินกู้ POOC").FontSize(10);
+                    col.Item().AlignRight().Text($"วันที่ทำสัญญา: {loan.CreatedDate.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))}").FontSize(10);
+                });
+
+                // 2. Content: เนื้อความสัญญา
                 page.Content().PaddingVertical(10).Column(col =>
                 {
-                    col.Item().BorderBottom(1).PaddingBottom(5).Text("รายละเอียดสัญญากู้ยืม").FontSize(14).SemiBold();
-                    
-                    col.Item().PaddingTop(5).Text(t => {
-                        t.Span("ข้าพเจ้า ");
-                        t.Span($"{loan.Member?.FirstName} {loan.Member?.LastName}").Underline();
-                        t.Span(" ตกลงทำสัญญากู้ยืมเงินจำนวน ");
-                        t.Span($"{loan.Amount:N2} บาท").SemiBold();
+                    // ข้อมูลคู่สัญญา
+                    col.Item().Text(t =>
+                    {
+                        t.Span("สัญญาฉบับนี้ทำขึ้นระหว่าง ");
+                        t.Span($"{loan.Member?.FirstName} {loan.Member?.LastName}").SemiBold();
+                        t.Span(" ซึ่งต่อไปนี้ในสัญญาเรียกว่า \"ผู้กู้\" ฝ่ายหนึ่ง กับ ");
+                        t.Span("ระบบกองทุน POOC").SemiBold();
+                        t.Span(" ซึ่งต่อไปนี้เรียกว่า \"ผู้ให้กู้\" อีกฝ่ายหนึ่ง ทั้งสองฝ่ายตกลงทำสัญญามีข้อความดังต่อไปนี้");
                     });
 
-                    col.Item().PaddingTop(15).Table(table =>
+                    // รายละเอียดเงินกู้
+                    col.Item().PaddingTop(5).PaddingLeft(20).Column(c =>
+                    {
+                        c.Item().Text($"ข้อ 1. ผู้กู้ได้กู้ยืมเงินจากผู้ให้กู้เป็นจำนวนเงิน {loan.Amount:N2} บาท");
+                        c.Item().Text($"ข้อ 2. ผู้กู้ตกลงยินยอมเสียดอกเบี้ยให้แก่ผู้ให้กู้ในอัตราร้อยละ {loan.Rate}% ต่อปี");
+                        c.Item().Text($"ข้อ 3. ผู้กู้ตกลงจะชำระคืนเงินต้นพร้อมดอกเบี้ยรวมทั้งสิ้น {loan.Months} งวด ตามตารางแนบท้ายสัญญานี้");
+                    });
+
+                    // 3. ตารางงวดชำระ (เน้นความสะอาด)
+                    col.Item().PaddingTop(15).Text("ตารางรายละเอียดการชำระเงินแนบท้ายสัญญา").SemiBold();
+                    col.Item().PaddingTop(5).Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.ConstantColumn(40);  
-                            columns.RelativeColumn();    
-                            columns.RelativeColumn();    
-                            columns.RelativeColumn();    
-                            columns.RelativeColumn();    
+                            columns.ConstantColumn(40);
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
                         });
 
                         table.Header(header =>
                         {
-                            header.Cell().Element(CellStyle).Text("งวดที่");
-                            header.Cell().Element(CellStyle).Text("เงินต้น");
-                            header.Cell().Element(CellStyle).Text("ดอกเบี้ย");
-                            header.Cell().Element(CellStyle).Text("ยอดจ่าย");
-                            header.Cell().Element(CellStyle).Text("คงเหลือ");
+                            var headerStyle = TextStyle.Default.SemiBold();
+                            header.Cell().Element(HeaderStyle).Text("งวดที่").Style(headerStyle);
+                            header.Cell().Element(HeaderStyle).Text("เงินต้น").Style(headerStyle);
+                            header.Cell().Element(HeaderStyle).Text("ดอกเบี้ย").Style(headerStyle);
+                            header.Cell().Element(HeaderStyle).Text("ยอดจ่าย").Style(headerStyle);
+                            header.Cell().Element(HeaderStyle).Text("คงเหลือ").Style(headerStyle);
 
-                            static IContainer CellStyle(IContainer container) => 
-                                container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).AlignCenter();
+                            static IContainer HeaderStyle(IContainer container) => 
+                                container.PaddingVertical(5).BorderBottom(1).AlignCenter();
                         });
 
                         foreach (var item in loan.LoanDetails.OrderBy(x => x.Installment))
@@ -289,35 +315,37 @@ public class LoanController : Controller
                             table.Cell().Element(ContentStyle).Text(item.Balance.ToString("N2"));
 
                             static IContainer ContentStyle(IContainer container) => 
-                                container.PaddingVertical(2).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).AlignCenter();
+                                container.PaddingVertical(2).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3).AlignCenter();
                         }
                     });
-                    col.Item().AlignRight().Text(t =>
-                    {
-                        t.Span("รวมเงินต้นทั้งสิ้น: ").SemiBold();
-                        t.Span($"{loan.Amount:N2} บาท");
-                    });
-                    col.Item().PaddingTop(30).Row(row =>
+
+                    // 4. ส่วนลงชื่อ (ให้ดูเป็นทางการ)
+                    col.Item().PaddingTop(40).Row(row =>
                     {
                         row.RelativeItem().Column(c =>
                         {
-                            c.Item().AlignCenter().Text("......................................................");
-                            c.Item().AlignCenter().Text("(ลงชื่อ) ผู้กู้ยืม");
-                            c.Item().AlignCenter().Text($"({loan.Member?.FirstName} {loan.Member?.LastName})");
+                            c.Item().AlignCenter().Text("ลงชื่อ......................................................");
+                            c.Item().PaddingTop(2).AlignCenter().Text($"( {loan.Member?.FirstName} {loan.Member?.LastName} )");
+                            c.Item().AlignCenter().Text("ผู้กู้");
                         });
 
                         row.RelativeItem().Column(c =>
                         {
-                            c.Item().AlignCenter().Text("......................................................");
-                            c.Item().AlignCenter().Text("(ลงชื่อ) ผู้ให้กู้");
-                            c.Item().AlignCenter().Text($"(......................................................)");
+                            c.Item().AlignCenter().Text("ลงชื่อ......................................................");
+                            c.Item().PaddingTop(2).AlignCenter().Text("( ...................................................... )");
+                            c.Item().AlignCenter().Text("ผู้ให้กู้ / พยาน");
                         });
                     });
+                });
+
+                // 5. Footer: เลขหน้า
+                page.Footer().AlignRight().Text(x => {
+                    x.Span("หน้า ");
+                    x.CurrentPageNumber();
                 });
             });
         });
 
-        byte[] pdfBytes = document.GeneratePdf();
-        return File(pdfBytes, "application/pdf", $"Contract_{loanId}.pdf");
+        return File(document.GeneratePdf(), "application/pdf", $"Contract_{loanId}.pdf");
     }
 }
