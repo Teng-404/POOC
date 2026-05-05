@@ -249,7 +249,7 @@ public class LoanController : Controller
                 // ตั้งค่าพื้นฐาน: ใช้ฟอนต์ที่ดูทางการ (ถ้ามีในระบบ) และขอบกระดาษที่เหมาะสม
                 page.Size(PageSizes.A4);
                 page.Margin(1.5f, Unit.Centimetre);
-                page.DefaultTextStyle(x => x.FontFamily("Tahoma").FontSize(11).LineHeight(1.5f));
+                page.DefaultTextStyle(x => x.FontFamily("TH Sarabun New").FontSize(11).LineHeight(1.5f));
 
                 // 1. Header: หัวเอกสาร
                 page.Header().Column(col =>
@@ -280,7 +280,7 @@ public class LoanController : Controller
                         c.Item().Text($"ข้อ 3. ผู้กู้ตกลงจะชำระคืนเงินต้นพร้อมดอกเบี้ยรวมทั้งสิ้น {loan.Months} งวด ตามตารางแนบท้ายสัญญานี้");
                     });
 
-                    // 3. ตารางงวดชำระ (เน้นความสะอาด)
+                    // 3. ตารางงวดชำระ
                     col.Item().PaddingTop(15).Text("ตารางรายละเอียดการชำระเงินแนบท้ายสัญญา").SemiBold();
                     col.Item().PaddingTop(5).Table(table =>
                     {
@@ -319,7 +319,7 @@ public class LoanController : Controller
                         }
                     });
 
-                    // 4. ส่วนลงชื่อ (ให้ดูเป็นทางการ)
+                    // 4. ส่วนลงชื่อ 
                     col.Item().PaddingTop(40).Row(row =>
                     {
                         row.RelativeItem().Column(c =>
@@ -338,7 +338,7 @@ public class LoanController : Controller
                     });
                 });
 
-                // 5. Footer: เลขหน้า
+                // 5. เลขหน้า
                 page.Footer().AlignRight().Text(x => {
                     x.Span("หน้า ");
                     x.CurrentPageNumber();
