@@ -1,0 +1,62 @@
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container mt-4">
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Member" ? "active" : "")" 
+               asp-controller="Home" asp-action="Member">สมาชิก</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")" 
+               asp-controller="Home" asp-action="Dashboard">ข้อมูลกู้ยืม</a>
+        </li>
+    </ul>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-primary"><i class="fas fa-chart-pie"></i> ระบบวิเคราะห์ข้อมูลกู้ยืม</h2>
+        <span class="badge bg-light text-dark border">อัปเดตล่าสุด: @DateTime.Now.ToString("HH:mm")</span>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-3">
+            <div class="card border-0 border-start border-primary border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small uppercase fw-bold">เงินปล่อยกู้ทั้งหมด</div>
+                    <div class="h3 fw-bold">฿@(ViewBag.TotalLoan?.ToString("N2") ?? "0.00")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 border-start border-success border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small uppercase fw-bold">เก็บเงินคืนแล้ว</div>
+                    <div class="h3 fw-bold text-success">฿@(ViewBag.Collected?.ToString("N2") ?? "0.00")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 border-start border-warning border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small uppercase fw-bold">ยอดรอชำระ</div>
+                    <div class="h3 fw-bold text-warning">฿@(ViewBag.Pending?.ToString("N2") ?? "0.00")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 border-start border-info border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small uppercase fw-bold">กำไรดอกเบี้ยสะสม</div>
+                    <div class="h3 fw-bold text-info">฿@(ViewBag.TotalInterest?.ToString("N2") ?? "0.00")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <div class="alert alert-info border-0 shadow-sm">
+            <i class="fas fa-info-circle"></i> ข้อมูลข้างต้นถูกคำนวณจากสัญญาทั้งหมดที่รันอยู่ในระบบปัจจุบัน
+        </div>
+    </div>
+</div>

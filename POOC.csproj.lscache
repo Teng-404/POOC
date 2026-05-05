@@ -465,7 +465,9 @@ obj/Debug/net9.0/POOC.GeneratedMSBuildEditorConfig.editorconfig
 [additionalFiles]
 Views/
  Auth/Index.cshtml
- Home/Member.cshtml
+ Home/
+  Dashboard.cshtml
+  Member.cshtml
  Shared/
   Error.cshtml
   _Layout.cshtml
@@ -476,7 +478,9 @@ Views/
 [dynamicFiles]
 Views/
  Auth/Index.cshtml
- Home/Member.cshtml
+ Home/
+  Dashboard.cshtml
+  Member.cshtml
  Shared/
   Error.cshtml
   _Layout.cshtml

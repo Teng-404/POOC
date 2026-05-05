@@ -2,7 +2,12 @@
 
 <ul class="nav nav-tabs">
     <li class="nav-item">
-        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#memberTab">สมาชิก</button>
+        <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Member" ? "active" : "")" 
+           asp-controller="Home" asp-action="Member">สมาชิก</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")" 
+           asp-controller="Home" asp-action="Dashboard">ข้อมูลกู้ยืม</a>
     </li>
 </ul>
 
