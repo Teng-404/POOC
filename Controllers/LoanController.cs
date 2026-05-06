@@ -357,12 +357,6 @@ public class LoanController : Controller
                         });
                     });
                 });
-
-                // 5. เลขหน้า
-                page.Footer().AlignRight().Text(x => {
-                    x.Span("หน้า ");
-                    x.CurrentPageNumber();
-                });
             });
         });
 
