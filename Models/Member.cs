@@ -14,6 +14,7 @@ namespace POOC.Models
         [Required]
         public string Role { get; set; } = string.Empty;
         public string? OwnerId { get; set; }
+        public virtual ICollection<Loan> Loans { get; set; } = new List<Loan>();
     }
     public class MemberViewModel
     {

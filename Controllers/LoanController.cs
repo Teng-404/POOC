@@ -145,20 +145,40 @@ public class LoanController : Controller
     [HttpPost]
     public IActionResult Delete([FromBody] DeleteRequest model)
     {   
-        Console.WriteLine("DELETE ID = " + model.Id); // debug
+        if (model == null) return Json(new { success = false, message = "ข้อมูลไม่ถูกต้อง" });
 
-        var loan = _context.Loans
-            .Include(x => x.LoanDetails)
-            .FirstOrDefault(x => x.Id == model.Id);
-
-        if (loan != null)
+        try 
         {
-            _context.LoanDetails.RemoveRange(loan.LoanDetails);
-            _context.Loans.Remove(loan);
-            _context.SaveChanges();
-        }
+            var loan = _context.Loans
+                .Include(x => x.LoanDetails)
+                .FirstOrDefault(x => x.Id == model.Id);
 
-        return Json(new { success = true });
+            if (loan != null)
+            {
+                // ลบตารางลูก (งวดชำระ) ก่อนเพื่อป้องกัน Foreign Key Error
+                if (loan.LoanDetails != null)
+                {
+                    _context.LoanDetails.RemoveRange(loan.LoanDetails);
+                }
+                
+                // ลบตารางแม่ (สัญญา)
+                _context.Loans.Remove(loan);
+                _context.SaveChanges();
+                return Json(new { success = true });
+            }
+            
+            return Json(new { success = false, message = "ไม่พบข้อมูลสัญญา" });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
+    }
+
+    // ตรวจสอบว่ามี Class นี้อยู่ด้านล่างสุดของไฟล์ (นอกปีกกาของ Controller) หรือยัง
+    public class DeleteRequest
+    {
+        public int Id { get; set; }
     }
     [HttpPost]
     [IgnoreAntiforgeryToken]

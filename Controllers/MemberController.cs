@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using POOC.Data;
 using POOC.Models;
-using System.Security.Claims; // เพิ่มตัวนี้เพื่อใช้ Claims
+using System.Security.Claims;
 
 public class MemberController : Controller
 {
@@ -82,15 +83,33 @@ public class MemberController : Controller
     [HttpPost]
     public IActionResult Delete(int id)
     {
-        var data = _context.Members.Find(id);
-
-        if (data != null)
+        try
         {
-            _context.Members.Remove(data);
-            _context.SaveChanges();
-        }
+            // 1. ค้นหาสมาชิกพร้อมสัญญาและรายละเอียดงวดทั้งหมด
+            var member = _context.Members
+                .Include(m => m.Loans)
+                    .ThenInclude(l => l.LoanDetails)
+                .FirstOrDefault(m => m.Id == id);
 
-        return RedirectToAction("Index");
+            if (member == null) return Json(new { success = false, message = "ไม่พบข้อมูลสมาชิก" });
+
+            // 2. ลบข้อมูลที่เกี่ยวข้องทั้งหมด (ถ้ามี)
+            foreach (var loan in member.Loans)
+            {
+                _context.LoanDetails.RemoveRange(loan.LoanDetails); // ลบงวด
+            }
+            _context.Loans.RemoveRange(member.Loans); // ลบสัญญา
+            
+            // 3. ลบตัวสมาชิก
+            _context.Members.Remove(member);
+            _context.SaveChanges();
+
+            return Json(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = "ลบไม่สำเร็จ: " + ex.Message });
+        }
     }
 
     [HttpGet]
