@@ -62,6 +62,8 @@ Data/ApplicationDbContext.cs
 Migrations/
  20260428044441_InitialCreate.cs
  20260428044441_InitialCreate.Designer.cs
+ 20260507030256_AddMemberFields.cs
+ 20260507030256_AddMemberFields.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  ErrorViewModel.cs

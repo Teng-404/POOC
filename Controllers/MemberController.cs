@@ -130,4 +130,40 @@ public class MemberController : Controller
 
         return Json(members);
     }
+    [HttpGet]
+    public IActionResult GetMemberDetail(int id)
+    {
+        var member = _context.Members.FirstOrDefault(m => m.Id == id);
+        if (member == null) return Json(new { success = false, message = "ไม่พบข้อมูลสมาชิก" });
+
+        // ดึงชื่อ Admin ผู้สร้าง (ถ้ามี)
+        var creator = _context.Users.FirstOrDefault(u => u.Id.ToString() == member.OwnerId);
+
+        return Json(new { success = true, data = new {
+            id = member.Id,
+            firstName = member.FirstName,
+            lastName = member.LastName,
+            role = member.Role,
+            ownerName = creator != null ? creator.FullName : "ไม่พบข้อมูลผู้ดูแล"
+            // ในอนาคตถ้าเพิ่มฟิลด์ เช่น เบอร์โทร, ที่อยู่ ให้ใส่เพิ่มตรงนี้
+        }});
+    }
+
+    [HttpPost]
+    public IActionResult UpdateMember([FromBody] Member model)
+    {
+        var member = _context.Members.Find(model.Id);
+        if (member == null) return Json(new { success = false, message = "ไม่พบสมาชิกที่ต้องการแก้ไข" });
+
+        // อัปเดตค่าหลัก
+        member.FirstName = model.FirstName;
+        member.LastName = model.LastName;
+        member.Role = model.Role;
+        
+        // ในอนาคตถ้ามีฟิลด์เพิ่ม ก็มาอัปเดตค่าตรงนี้
+        // member.Phone = model.Phone; 
+
+        _context.SaveChanges();
+        return Json(new { success = true });
+    }
 }

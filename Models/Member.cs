@@ -13,6 +13,9 @@ namespace POOC.Models
         public string LastName { get; set; } = string.Empty;
         [Required]
         public string Role { get; set; } = string.Empty;
+        public string? CitizenId { get; set; }
+        public string? Address { get; set; }   
+        public string? Phone { get; set; }
         public string? OwnerId { get; set; }
         public virtual ICollection<Loan> Loans { get; set; } = new List<Loan>();
     }

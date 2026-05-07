@@ -71,12 +71,12 @@
 
                                 <td>
 
-                                    <!-- EDIT -->
+                                    <!-- PROFILE -->
                                     <button class="btn btn-warning btn-sm"
                                             data-bs-toggle="modal"
                                             data-bs-target="#editModal"
-                                            onclick="openEdit('@m.Id','@m.FirstName','@m.LastName','@m.Role')">
-                                        แก้ไข
+                                            onclick="openEdit('@m.Id','@m.FirstName','@m.LastName','@m.Role','@m.CitizenId','@m.Phone','@m.Address')">
+                                        ประวัติ
                                     </button>
 
                                     <!-- LOAN -->
@@ -111,7 +111,7 @@
     </div>
 </div>
 
-<!-- ================= EDIT MODAL ================= -->
+<!-- ================= PROFILE MODAL ================= -->
 <div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -119,7 +119,7 @@
             <form asp-action="Update" asp-controller="Member" method="post">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">แก้ไขสมาชิก</h5>
+                    <h5 class="modal-title">ประวัติสมาชิก</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
 
@@ -140,6 +140,24 @@
                     <div class="mb-2">
                         <label>อาชีพ</label>
                         <input type="text" id="editRole" name="Role" class="form-control" />
+                    </div>
+
+                    <div class="mt-4 p-3 border rounded bg-light">
+                        <h6 class="text-muted border-bottom pb-2"><i class="bi bi-info-circle"></i> ข้อมูลเพิ่มเติมอื่น ๆ</h6>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">เลขบัตรประชาชน</label>
+                        <input type="text" id="editCitizenId" name="CitizenId" class="form-control form-control-sm" placeholder="X-XXXX-XXXXX-XX-X" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">เบอร์โทรศัพท์</label>
+                        <input type="text" id="editPhone" name="Phone" class="form-control form-control-sm" placeholder="0XX-XXX-XXXX" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">ที่อยู่</label>
+                        <textarea id="editAddress" name="Address" class="form-control form-control-sm" rows="2"></textarea>
+                    </div>
                     </div>
 
                 </div>
@@ -271,8 +289,12 @@ function searchMember() {
                     <td>${m.lastName}</td>
                     <td>${m.role}</td>
                     <td>
-                        <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
-                            onclick="openEdit('${m.id}','${m.firstName}','${m.lastName}','${m.role}')">แก้ไข</button>
+                        <button class="btn btn-warning btn-sm" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#editModal" 
+                                onclick="openEdit('${m.id}','${m.firstName}','${m.lastName}','${m.role}','${m.citizenId}','${m.phone}','${m.address}')">
+                            ประวัติ
+                        </button>
                         <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#loanModal"
                             onclick="openLoan(${m.id},'${m.firstName}','${m.lastName}')">เงินกู้</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id}, '${m.firstName} ${m.lastName}')">ลบ</button>
@@ -284,11 +306,46 @@ function searchMember() {
     }, 300);
 }
 
-function openEdit(id, firstName, lastName, role) {
-    document.getElementById("editId").value = id;
-    document.getElementById("editFirstName").value = firstName;
-    document.getElementById("editLastName").value = lastName;
-    document.getElementById("editRole").value = role;
+function openEdit(id) {
+    fetch('/Member/GetMemberDetail?id=' + id)
+    .then(res => res.json())
+    .then(res => {
+        if (res.success) {
+            document.getElementById("editId").value = res.data.id;
+            document.getElementById("editFirstName").value = res.data.firstName;
+            document.getElementById("editLastName").value = res.data.lastName;
+            document.getElementById("editRole").value = res.data.role;
+            document.getElementById("displayOwner").innerText = res.data.ownerName;
+            document.getElementById("editCitizenId").value = citizenId || "";
+            document.getElementById("editPhone").value = phone || "";
+            document.getElementById("editAddress").value = address || "";
+        }
+    });
+}
+
+function saveEdit() {
+    const data = {
+        id: parseInt(document.getElementById("editId").value),
+        firstName: document.getElementById("editFirstName").value,
+        lastName: document.getElementById("editLastName").value,
+        role: document.getElementById("editRole").value
+    };
+
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => { Swal.showLoading() } });
+
+    fetch('/Member/UpdateMember', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.success) {
+            Swal.fire('สำเร็จ', 'อัปเดตข้อมูลแล้ว', 'success').then(() => location.reload());
+        } else {
+            Swal.fire('ผิดพลาด', res.message, 'error');
+        }
+    });
 }
 
 // --- ส่วนของเงินกู้ (Loan) ---
