@@ -116,58 +116,54 @@
     <div class="modal-dialog">
         <div class="modal-content">
 
-            <form asp-action="Update" asp-controller="Member" method="post">
+            <div class="modal-header">
+                <h5 class="modal-title">ประวัติสมาชิก</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
 
-                <div class="modal-header">
-                    <h5 class="modal-title">ประวัติสมาชิก</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-body">
+                <input type="hidden" id="editId" />
+
+                <div class="mb-2">
+                    <label>ชื่อ</label>
+                    <input type="text" id="editFirstName" class="form-control" />
                 </div>
 
-                <div class="modal-body">
+                <div class="mb-2">
+                    <label>นามสกุล</label>
+                    <input type="text" id="editLastName" class="form-control" />
+                </div>
 
-                    <input type="hidden" id="editId" name="Id" />
+                <div class="mb-2">
+                    <label>อาชีพ</label>
+                    <input type="text" id="editRole" class="form-control" />
+                </div>
 
-                    <div class="mb-2">
-                        <label>ชื่อ</label>
-                        <input type="text" id="editFirstName" name="FirstName" class="form-control" />
-                    </div>
-
-                    <div class="mb-2">
-                        <label>นามสกุล</label>
-                        <input type="text" id="editLastName" name="LastName" class="form-control" />
-                    </div>
-
-                    <div class="mb-2">
-                        <label>อาชีพ</label>
-                        <input type="text" id="editRole" name="Role" class="form-control" />
-                    </div>
-
-                    <div class="mt-4 p-3 border rounded bg-light">
-                        <h6 class="text-muted border-bottom pb-2"><i class="bi bi-info-circle"></i> ข้อมูลเพิ่มเติมอื่น ๆ</h6>
+                <div class="mt-4 p-3 border rounded bg-light">
+                    <h6 class="text-muted border-bottom pb-2">
+                        <i class="bi bi-info-circle"></i> ข้อมูลเพิ่มเติมอื่น ๆ
+                    </h6>
                     <div class="mb-2">
                         <label class="form-label small fw-bold">เลขบัตรประชาชน</label>
-                        <input type="text" id="editCitizenId" name="CitizenId" class="form-control form-control-sm" placeholder="X-XXXX-XXXXX-XX-X" />
+                        <input type="text" id="editCitizenId" class="form-control form-control-sm" placeholder="X-XXXX-XXXXX-XX-X" />
                     </div>
 
                     <div class="mb-2">
                         <label class="form-label small fw-bold">เบอร์โทรศัพท์</label>
-                        <input type="text" id="editPhone" name="Phone" class="form-control form-control-sm" placeholder="0XX-XXX-XXXX" />
+                        <input type="text" id="editPhone" class="form-control form-control-sm" placeholder="0XX-XXX-XXXX" />
                     </div>
 
                     <div class="mb-2">
                         <label class="form-label small fw-bold">ที่อยู่</label>
-                        <textarea id="editAddress" name="Address" class="form-control form-control-sm" rows="2"></textarea>
+                        <textarea id="editAddress" class="form-control form-control-sm" rows="2"></textarea>
                     </div>
-                    </div>
-
                 </div>
+            </div>
 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
-                    <button type="submit" class="btn btn-success">บันทึก</button>
-                </div>
-
-            </form>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                <button type="button" class="btn btn-success" onclick="saveEdit()">บันทึก</button>
+            </div>
 
         </div>
     </div>
@@ -315,21 +311,25 @@ function openEdit(id) {
             document.getElementById("editFirstName").value = res.data.firstName;
             document.getElementById("editLastName").value = res.data.lastName;
             document.getElementById("editRole").value = res.data.role;
-            document.getElementById("displayOwner").innerText = res.data.ownerName;
-            document.getElementById("editCitizenId").value = citizenId || "";
-            document.getElementById("editPhone").value = phone || "";
-            document.getElementById("editAddress").value = address || "";
+            document.getElementById("editCitizenId").value = res.data.citizenId || "";
+            document.getElementById("editPhone").value = res.data.phone || "";
+            document.getElementById("editAddress").value = res.data.address || "";
         }
     });
 }
 
 function saveEdit() {
     const data = {
-        id: parseInt(document.getElementById("editId").value),
-        firstName: document.getElementById("editFirstName").value,
-        lastName: document.getElementById("editLastName").value,
-        role: document.getElementById("editRole").value
+        Id: parseInt(document.getElementById("editId").value),
+        FirstName: document.getElementById("editFirstName").value,
+        LastName: document.getElementById("editLastName").value,
+        Role: document.getElementById("editRole").value,
+        CitizenId: document.getElementById("editCitizenId").value,
+        Phone: document.getElementById("editPhone").value,
+        Address: document.getElementById("editAddress").value
     };
+
+    if (isNaN(data.Id)) return Swal.fire('ผิดพลาด', 'ไม่พบรหัสสมาชิก', 'error');
 
     Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => { Swal.showLoading() } });
 
@@ -345,7 +345,8 @@ function saveEdit() {
         } else {
             Swal.fire('ผิดพลาด', res.message, 'error');
         }
-    });
+    })
+    .catch(err => Swal.fire('ผิดพลาด', 'การเชื่อมต่อเซิร์ฟเวอร์ล้มเหลว', 'error'));
 }
 
 // --- ส่วนของเงินกู้ (Loan) ---

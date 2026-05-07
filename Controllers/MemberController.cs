@@ -61,24 +61,6 @@ public class MemberController : Controller
         }
     }
 
-    // UPDATE
-    [HttpPost]
-    public IActionResult Update(Member model)
-    {
-        var data = _context.Members.FirstOrDefault(x => x.Id == model.Id);
-
-        if (data != null)
-        {
-            data.FirstName = model.FirstName;
-            data.LastName = model.LastName;
-            data.Role = model.Role;
-
-            _context.SaveChanges();
-        }
-
-        return RedirectToAction("Index");
-    }
-
     // DELETE
     [HttpPost]
     public IActionResult Delete(int id)
@@ -144,26 +126,33 @@ public class MemberController : Controller
             firstName = member.FirstName,
             lastName = member.LastName,
             role = member.Role,
+            citizenId = member.CitizenId,
+            phone = member.Phone,
+            address = member.Address,
             ownerName = creator != null ? creator.FullName : "ไม่พบข้อมูลผู้ดูแล"
-            // ในอนาคตถ้าเพิ่มฟิลด์ เช่น เบอร์โทร, ที่อยู่ ให้ใส่เพิ่มตรงนี้
         }});
     }
-
     [HttpPost]
     public IActionResult UpdateMember([FromBody] Member model)
     {
-        var member = _context.Members.Find(model.Id);
-        if (member == null) return Json(new { success = false, message = "ไม่พบสมาชิกที่ต้องการแก้ไข" });
+        if (model == null) return Json(new { success = false, message = "ไม่ได้รับข้อมูล" });
 
-        // อัปเดตค่าหลัก
+        var member = _context.Members.Find(model.Id);
+        if (member == null) return Json(new { success = false, message = "ไม่พบสมาชิก" });
+
         member.FirstName = model.FirstName;
         member.LastName = model.LastName;
         member.Role = model.Role;
-        
-        // ในอนาคตถ้ามีฟิลด์เพิ่ม ก็มาอัปเดตค่าตรงนี้
-        // member.Phone = model.Phone; 
+        member.CitizenId = model.CitizenId;
+        member.Phone = model.Phone;
+        member.Address = model.Address;
 
-        _context.SaveChanges();
-        return Json(new { success = true });
+        try {
+            _context.SaveChanges();
+            return Json(new { success = true });
+        }
+        catch (Exception ex) {
+            return Json(new { success = false, message = "บันทึกไม่สำเร็จ: " + ex.Message });
+        }
     }
 }
