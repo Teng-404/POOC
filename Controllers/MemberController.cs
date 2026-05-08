@@ -155,4 +155,53 @@ public class MemberController : Controller
             return Json(new { success = false, message = "บันทึกไม่สำเร็จ: " + ex.Message });
         }
     }
+    [HttpGet]
+    public IActionResult GetSavingsBalance(int memberId)
+    {
+        var history = _context.Savings
+            .Where(s => s.MemberId == memberId)
+            .OrderByDescending(s => s.TransactionDate)
+            .Take(1000)
+            .ToList();
+
+        // คำนวณยอดเงินรวม
+        var balance = _context.Savings
+            .Where(s => s.MemberId == memberId)
+            .Sum(s => s.Amount);
+
+        return Json(new { 
+            balance = balance, 
+            history = history 
+        });
+    }
+
+    [HttpPost]
+    public IActionResult SaveTransaction([FromBody] SavingsRequest req)
+    {
+        // ตรวจสอบเงินถอนว่าพอไหม
+        var currentBalance = _context.Savings.Where(s => s.MemberId == req.MemberId).Sum(s => s.Amount);
+        decimal amount = req.Type == "deposit" ? req.Amount : -req.Amount;
+
+        if (req.Type == "withdraw" && currentBalance < req.Amount)
+            return Json(new { success = false, message = "ยอดเงินคงเหลือไม่พอสำหรับการถอน" });
+
+        var transaction = new Savings {
+            MemberId = req.MemberId,
+            Amount = amount,
+            Balance = currentBalance + amount,
+            Description = req.Type == "deposit" ? "ฝากเงินสด" : "ถอนเงินสด"
+        };
+
+        _context.Savings.Add(transaction);
+        _context.SaveChanges();
+
+        return Json(new { success = true });
+    }
+
+    // คลาสตัวช่วยรับข้อมูลจาก JSON
+    public class SavingsRequest {
+        public int MemberId { get; set; }
+        public decimal Amount { get; set; }
+        public string Type { get; set; } = string.Empty;
+    }
 }

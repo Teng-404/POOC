@@ -79,6 +79,14 @@
                                         ประวัติ
                                     </button>
 
+                                    <!-- SAVINGS -->
+                                    <button class="btn btn-primary btn-sm" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#savingsModal" 
+                                            onclick="openSavings(@m.Id, '@m.FirstName')">
+                                        เงินฝาก
+                                    </button>
+
                                     <!-- LOAN -->
                                     <button class="btn btn-info btn-sm"
                                             data-bs-toggle="modal"
@@ -173,10 +181,9 @@
 <div class="modal fade" id="loanModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-
             <div class="modal-header">
                 <h5 class="modal-title">
-                    ตารางเงินกู้ของ <span id="loanName"></span>
+                    จัดการเงินกู้ของ <span id="loanName"></span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -233,6 +240,60 @@
                 <button class="btn btn-primary mt-2" onclick="saveLoan()">บันทึก</button>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- ================= SAVINGS MODAL ================= -->
+<div class="modal fade" id="savingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">จัดการเงินฝากของ <span id="savingsMemberName"></span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <input type="hidden" id="savingsMemberId" />
+                
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <input type="number" id="savingsAmount" class="form-control" placeholder="จำนวนเงิน">
+                    </div>
+                    <div class="col-6">
+                        <select id="transType" class="form-select">
+                            <option value="deposit">ฝากเงิน (+)</option>
+                            <option value="withdraw">ถอนเงิน (-)</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-success btn-sm w-100" onclick="saveSavings()">ยืนยันรายการ</button>
+                    </div>
+                </div>
+
+                <div class="text-center mb-3 p-2 bg-light border rounded">
+                    <small class="text-muted">ยอดเงินคงเหลือปัจจุบัน:</small>
+                    <strong class="text-primary h5 mb-0 ms-2" id="currentBalance">0.00</strong>
+                </div>
+
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-sm border shadow-sm">
+                        <thead>
+                            <tr class="text-center align-middle" style="font-size: 0.85rem;">
+                                <th>ลำดับ</th>
+                                <th>วันที่</th>
+                                <th>รายการ</th>
+                                <th>จำนวนเงิน</th>
+                                <th>คงเหลือ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="savingsHistoryBody" style="font-size: 0.8rem;">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-1">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal">บันทึก</button>
+            </div>
         </div>
     </div>
 </div>
@@ -456,6 +517,74 @@ function loadLoanHistory(memberId) {
             });
         });
         document.getElementById("loanTableBody").innerHTML = html;
+    });
+}
+
+// --- ส่วนของเงินฝาก (Savings) ---
+function openSavings(id, name) {
+    document.getElementById("savingsMemberId").value = id;
+    document.getElementById("savingsMemberName").innerText = name;
+    document.getElementById("savingsAmount").value = ""; 
+
+    fetch('/Member/GetSavingsBalance?memberId=' + id)
+        .then(res => res.json())
+        .then(data => {
+            // ยอดเงินตัวบน
+            document.getElementById("currentBalance").innerText = 
+                data.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+
+            let html = "";
+            if (data.history && data.history.length > 0) {
+                // แสดงประวัติ โดยเรียงลำดับเหมือนงวดเงินกู้
+                data.history.forEach((item, index) => {
+                    const date = new Date(item.transactionDate).toLocaleDateString('th-TH');
+                    const isDeposit = item.amount >= 0;
+                    
+                    html += `
+                        <tr class="text-center align-middle">
+                            <td>${index + 1}</td>
+                            <td>${date}</td>
+                            <td class="text-start">${item.description}</td>
+                            <td class="${isDeposit ? 'text-success' : 'text-danger'}">
+                                ${isDeposit ? '+' : ''}${item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                            </td>
+                            <td class="fw-bold bg-light">
+                                ${item.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                            </td>
+                        </tr>`;
+                });
+            } else {
+                html = '<tr><td colspan="5" class="text-center p-3 text-muted">ยังไม่พบรายการเคลื่อนไหว</td></tr>';
+            }
+            document.getElementById("savingsHistoryBody").innerHTML = html;
+        });
+}
+
+function saveSavings() {
+    const data = {
+        MemberId: parseInt(document.getElementById("savingsMemberId").value),
+        Amount: parseFloat(document.getElementById("savingsAmount").value),
+        Type: document.getElementById("transType").value
+    };
+
+    if (isNaN(data.Amount) || data.Amount <= 0) {
+        return Swal.fire('ผิดพลาด', 'กรุณาระบุจำนวนเงินให้ถูกต้อง', 'error');
+    }
+
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+
+    fetch('/Member/SaveTransaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.success) {
+            Swal.fire('สำเร็จ', 'บันทึกรายการแล้ว', 'success').then(() => location.reload());
+        } else {
+            Swal.fire('ผิดพลาด', res.message, 'error');
+        }
     });
 }
 

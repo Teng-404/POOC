@@ -60,16 +60,15 @@ Controllers/
  MemberController.cs
 Data/ApplicationDbContext.cs
 Migrations/
- 20260428044441_InitialCreate.cs
- 20260428044441_InitialCreate.Designer.cs
- 20260507030256_AddMemberFields.cs
- 20260507030256_AddMemberFields.Designer.cs
+ 20260508025701_InitialCreate.cs
+ 20260508025701_InitialCreate.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  ErrorViewModel.cs
  Loan.cs
  Member.cs
  Model.cs
+ Savings.cs
 obj/Debug/net9.0/
  .NETCoreApp,Version=v9.0.AssemblyAttributes.cs
  POOC.AssemblyInfo.cs

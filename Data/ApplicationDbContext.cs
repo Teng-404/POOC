@@ -19,6 +19,7 @@ namespace POOC.Data
         public DbSet<Loan> Loans { get; set; }
         public DbSet<LoanDetail> LoanDetails { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<Savings> Savings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
