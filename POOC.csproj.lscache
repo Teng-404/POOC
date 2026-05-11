@@ -62,6 +62,8 @@ Data/ApplicationDbContext.cs
 Migrations/
  20260508025701_InitialCreate.cs
  20260508025701_InitialCreate.Designer.cs
+ 20260511022318_AddSavingsInterest.cs
+ 20260511022318_AddSavingsInterest.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  ErrorViewModel.cs

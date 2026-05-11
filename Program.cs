@@ -46,9 +46,21 @@ app.MapControllerRoute(
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
     context.Database.EnsureCreated();
 
-    // --- ส่วนของ User ---
+    context.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS SavingsInterests (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            MemberId INTEGER NOT NULL,
+            Year INTEGER NOT NULL,
+            PrincipalSnapshot TEXT NOT NULL,
+            Rate TEXT NOT NULL,
+            InterestAmount TEXT NOT NULL,
+            CreatedDate TEXT NOT NULL
+        )
+    ");
+
     if (!context.Users.Any(u => u.Username == "admin"))
     {
         context.Users.Add(new User { Username = "admin", Password = "123", FullName = "Admin" });

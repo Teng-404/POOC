@@ -2,61 +2,418 @@
     ViewData["Title"] = "Dashboard";
 }
 
+<style>
+    .db-tabs { display: flex; gap: 2px; border-bottom: 1px solid #e5e7eb; margin-bottom: 1.5rem; }
+    .db-tab { padding: 8px 16px; font-size: 14px; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .db-tab.active { color: #111827; border-bottom-color: #111827; font-weight: 500; }
+    .db-tab:hover { color: #111827; text-decoration: none; }
+    .db-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .db-title { font-size: 22px; font-weight: 500; color: #111827; margin: 0 0 4px; }
+    .db-subtitle { font-size: 13px; color: #6b7280; margin: 0; }
+    .db-badge { font-size: 11px; background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 20px; padding: 4px 10px; color: #6b7280; white-space: nowrap; }
+    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 1.5rem; }
+    .metric-card { background: #f9fafb; border-radius: 8px; padding: 1rem; }
+    .metric-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .metric-value { font-size: 20px; font-weight: 500; color: #111827; }
+    .metric-delta { font-size: 11px; margin-top: 4px; color: #6b7280; }
+    .metric-delta.up { color: #059669; }
+    .metric-delta.down { color: #dc2626; }
+    .section-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.5fr); gap: 16px; margin-bottom: 16px; }
+    .db-card { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; padding: 1rem 1.25rem; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .card-title { font-size: 14px; font-weight: 500; color: #111827; margin: 0; }
+    .card-action { font-size: 12px; color: #6b7280; background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+    .card-action:hover { background: #f3f4f6; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; font-size: 12px; color: #6b7280; }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .legend-sq { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .member-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 0.5px solid #f3f4f6; font-size: 13px; }
+    .member-row:last-child { border-bottom: none; }
+    .member-name { color: #111827; display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0; }
+    .member-bal { font-weight: 500; color: #111827; text-align: right; }
+    .member-int { color: #059669; font-size: 12px; text-align: right; }
+    .interest-card { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 16px; }
+    .interest-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+    .field-wrap { display: flex; flex-direction: column; gap: 4px; }
+    .field-label { font-size: 12px; color: #6b7280; }
+    .field-wrap input { width: 140px; font-size: 13px; }
+    .btn-calc { padding: 8px 20px; font-size: 13px; font-weight: 500; background: #185FA5; color: #E6F1FB; border: none; border-radius: 8px; cursor: pointer; }
+    .btn-calc:hover { background: #0C447C; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; }
+    .bar-label { width: 72px; color: #6b7280; text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+    .bar-val { width: 58px; font-weight: 500; color: #111827; flex-shrink: 0; font-size: 12px; }
+    .progress-section { margin-top: 14px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-bottom: 5px; }
+    .progress-track { height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+    .summary-mini-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .summary-mini { background: #f9fafb; border-radius: 8px; padding: 10px; text-align: center; }
+    .summary-mini-label { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+    .summary-mini-val { font-size: 16px; font-weight: 500; }
+    .loading-row { text-align: center; padding: 24px; color: #9ca3af; font-size: 13px; }
+
+    @@media (max-width: 768px) {
+        .metric-grid { grid-template-columns: repeat(2, 1fr); }
+        .section-grid { grid-template-columns: 1fr; }
+        .summary-mini-grid { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+
 <div class="container mt-4">
-    <ul class="nav nav-tabs mb-4">
-        <li class="nav-item">
-            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Member" ? "active" : "")" 
-               asp-controller="Home" asp-action="Member">สมาชิก</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")" 
-               asp-controller="Home" asp-action="Dashboard">ข้อมูลกู้ยืม</a>
-        </li>
-    </ul>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold text-primary"><i class="fas fa-chart-pie"></i> ระบบวิเคราะห์ข้อมูลกู้ยืม</h2>
-        <span class="badge bg-light text-dark border">อัปเดตล่าสุด: @DateTime.Now.ToString("HH:mm")</span>
+    <!-- TABS -->
+    <div class="db-tabs">
+        <a class="db-tab @(ViewContext.RouteData.Values["action"]?.ToString() == "Member" ? "active" : "")"
+           asp-controller="Home" asp-action="Member">สมาชิก</a>
+        <a class="db-tab @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")"
+           asp-controller="Home" asp-action="Dashboard">ภาพรวม</a>
     </div>
 
-    <div class="row g-4">
-        <div class="col-md-3">
-            <div class="card border-0 border-start border-primary border-4 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="text-muted small uppercase fw-bold">เงินปล่อยกู้ทั้งหมด</div>
-                    <div class="h3 fw-bold">฿@(ViewBag.TotalLoan?.ToString("N2") ?? "0.00")</div>
-                </div>
+    <!-- HEADER -->
+    <div class="db-header">
+        <div>
+            <p class="db-title">ภาพรวมระบบ</p>
+            <p class="db-subtitle">ข้อมูลเงินกู้และเงินฝากทั้งกองทุน</p>
+        </div>
+        <span class="db-badge">
+            <i class="bi bi-arrow-clockwise"></i>
+            อัปเดต @DateTime.Now.ToString("HH:mm")
+        </span>
+    </div>
+
+    <!-- METRIC CARDS (เงินกู้) -->
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-label">
+                <i class="bi bi-cash-stack"></i> เงินปล่อยกู้ทั้งหมด
+            </div>
+            <div class="metric-value">฿@(ViewBag.TotalLoan?.ToString("N2") ?? "0.00")</div>
+            <div class="metric-delta">ยอดสัญญาทั้งหมด</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">
+                <i class="bi bi-check-circle"></i> เก็บเงินคืนแล้ว
+            </div>
+            <div class="metric-value">฿@(ViewBag.Collected?.ToString("N2") ?? "0.00")</div>
+            <div class="metric-delta up" id="collectedPct">
+                <i class="bi bi-arrow-up"></i> <span>—</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 border-start border-success border-4 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="text-muted small uppercase fw-bold">เก็บเงินคืนแล้ว</div>
-                    <div class="h3 fw-bold text-success">฿@(ViewBag.Collected?.ToString("N2") ?? "0.00")</div>
-                </div>
+        <div class="metric-card">
+            <div class="metric-label">
+                <i class="bi bi-hourglass-split"></i> ยอดรอชำระ
+            </div>
+            <div class="metric-value">฿@(ViewBag.Pending?.ToString("N2") ?? "0.00")</div>
+            <div class="metric-delta down" id="pendingPct">
+                <span>—</span> คงเหลือ
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 border-start border-warning border-4 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="text-muted small uppercase fw-bold">ยอดรอชำระ</div>
-                    <div class="h3 fw-bold text-warning">฿@(ViewBag.Pending?.ToString("N2") ?? "0.00")</div>
-                </div>
+        <div class="metric-card">
+            <div class="metric-label">
+                <i class="bi bi-graph-up-arrow"></i> ดอกเบี้ยสะสม (เงินกู้)
+            </div>
+            <div class="metric-value">฿@(ViewBag.TotalInterest?.ToString("N2") ?? "0.00")</div>
+            <div class="metric-delta up">กำไรสะสม</div>
+        </div>
+    </div>
+
+    <!-- INTEREST CALCULATOR -->
+    <div class="interest-card">
+        <div class="card-head" style="margin-bottom:0.75rem;">
+            <p class="card-title">
+                <i class="bi bi-calendar-check" style="margin-right:6px;"></i>
+                คิดดอกเบี้ยเงินฝากประจำปี
+            </p>
+        </div>
+        <div class="interest-row">
+            <div class="field-wrap">
+                <label class="field-label">ปี (พ.ศ.)</label>
+                <input type="number" id="interestYear" value="@(DateTime.Now.Year + 543)" />
+            </div>
+            <div class="field-wrap">
+                <label class="field-label">อัตราดอกเบี้ย (%/ปี)</label>
+                <input type="number" id="interestRate" value="5" step="0.01" />
+            </div>
+            <button class="btn-calc" onclick="calcInterest()">
+                <i class="bi bi-calculator" style="margin-right:5px;"></i>คำนวณและบันทึก
+            </button>
+            <span style="font-size:12px; color:#9ca3af; align-self:flex-end; padding-bottom:2px;">
+                ดำเนินการได้ครั้งเดียวต่อปี
+            </span>
+        </div>
+    </div>
+
+    <!-- CHART + SUMMARY GRID -->
+    <div class="section-grid">
+
+        <!-- กราฟวงกลม -->
+        <div class="db-card">
+            <div class="card-head">
+                <p class="card-title">สัดส่วนเงินฝากแต่ละคน</p>
+            </div>
+            <div class="legend" id="chartLegend">
+                <span style="color:#9ca3af;">กำลังโหลด...</span>
+            </div>
+            <div style="position:relative; width:100%; height:220px;">
+                <canvas id="savingsChart"
+                        role="img"
+                        aria-label="กราฟวงกลมแสดงสัดส่วนเงินฝากของสมาชิกแต่ละคน">
+                    ข้อมูลเงินฝากสมาชิก
+                </canvas>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 border-start border-info border-4 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="text-muted small uppercase fw-bold">กำไรดอกเบี้ยสะสม</div>
-                    <div class="h3 fw-bold text-info">฿@(ViewBag.TotalInterest?.ToString("N2") ?? "0.00")</div>
+
+        <!-- ตารางสรุป + bar -->
+        <div class="db-card">
+            <div class="card-head">
+                <p class="card-title">รายงานเงินฝากรวมทั้งกองทุน</p>
+                <button class="card-action" onclick="loadSavingsSummary()">
+                    <i class="bi bi-arrow-clockwise"></i> โหลดใหม่
+                </button>
+            </div>
+
+            <div class="summary-mini-grid">
+                <div class="summary-mini">
+                    <div class="summary-mini-label">เงินฝากรวม</div>
+                    <div class="summary-mini-val" id="totalBalanceCard" style="color:#185FA5;">-</div>
+                </div>
+                <div class="summary-mini">
+                    <div class="summary-mini-label">ดอกเบี้ยจ่ายสะสม</div>
+                    <div class="summary-mini-val" id="totalInterestCard" style="color:#059669;">-</div>
+                </div>
+                <div class="summary-mini">
+                    <div class="summary-mini-label">สมาชิกที่ฝากเงิน</div>
+                    <div class="summary-mini-val" id="totalMembersCard" style="color:#0891b2;">-</div>
+                </div>
+            </div>
+
+            <div id="barRows">
+                <div class="loading-row">กดโหลดข้อมูล หรือรอระบบโหลดอัตโนมัติ...</div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-label">
+                    <span>อัตราการเก็บเงินคืน (เงินกู้)</span>
+                    <span style="font-weight:500;" id="loanProgressPct">—</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="loanProgressBar" style="width:0%; background:#185FA5;"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="mt-5">
-        <div class="alert alert-info border-0 shadow-sm">
-            <i class="fas fa-info-circle"></i> ข้อมูลข้างต้นถูกคำนวณจากสัญญาทั้งหมดที่รันอยู่ในระบบปัจจุบัน
+    <!-- MEMBER DETAIL TABLE -->
+    <div class="db-card" style="margin-bottom: 2rem;">
+        <div class="card-head">
+            <p class="card-title">รายละเอียดสมาชิก — เงินฝากและดอกเบี้ยสะสม</p>
+        </div>
+        <div id="memberRows">
+            <div class="loading-row">
+                <i class="bi bi-arrow-clockwise"></i> กำลังโหลดข้อมูล...
+            </div>
         </div>
     </div>
+
 </div>
+
+<!-- ================= JS ================= -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const CHART_COLORS = [
+    '#185FA5','#0F6E56','#D85A30','#B07519',
+    '#3B6D11','#993556','#533AB7','#888780',
+    '#0891b2','#b45309'
+];
+
+let savingsChartInstance = null;
+
+// คำนวณ % เก็บคืน
+(function initLoanProgress() {
+    const total  = parseFloat('@(ViewBag.TotalLoan ?? 0)');
+    const collected = parseFloat('@(ViewBag.Collected ?? 0)');
+    if (total > 0) {
+        const pct = (collected / total * 100).toFixed(1);
+        document.getElementById('loanProgressPct').innerText = pct + '%';
+        document.getElementById('loanProgressBar').style.width = pct + '%';
+        document.getElementById('collectedPct').innerHTML =
+            `<i class="bi bi-arrow-up"></i> ${pct}% ของยอดทั้งหมด`;
+        document.getElementById('pendingPct').innerHTML =
+            `${(100 - pct).toFixed(1)}% คงเหลือ`;
+    }
+})();
+
+async function loadSavingsSummary() {
+    try {
+        const res  = await fetch('/Member/GetSavingsSummary');
+        const data = await res.json();
+
+        // --- mini cards ---
+        document.getElementById('totalBalanceCard').innerText =
+            '฿' + data.totalBalance.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+        document.getElementById('totalInterestCard').innerText =
+            '฿' + data.totalInterest.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+        document.getElementById('totalMembersCard').innerText =
+            data.members.length + ' คน';
+
+        // --- bar rows ---
+        const maxBal = Math.max(...data.members.map(m => m.balance), 1);
+        let barHtml = '';
+        data.members.forEach((m, i) => {
+            const pct   = (m.balance / maxBal * 100).toFixed(1);
+            const color = CHART_COLORS[i % CHART_COLORS.length];
+            const firstName = m.name.split(' ')[0];
+            barHtml += `
+            <div class="bar-row">
+                <span class="bar-label" title="${m.name}">${firstName}</span>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width:${pct}%; background:${color};"></div>
+                </div>
+                <span class="bar-val">฿${(m.balance / 1000).toFixed(0)}k</span>
+            </div>`;
+        });
+        document.getElementById('barRows').innerHTML =
+            barHtml || '<div class="loading-row">ไม่มีข้อมูล</div>';
+
+        // --- member detail rows ---
+        let memberHtml = '';
+        data.members.forEach((m, i) => {
+            const color = CHART_COLORS[i % CHART_COLORS.length];
+            const initials = m.name.split(' ').map(w => w.charAt(0)).join('').slice(0, 2);
+            memberHtml += `
+            <div class="member-row">
+                <div class="member-name">
+                    <div class="avatar" style="background:${color}22; color:${color};">${initials}</div>
+                    ${m.name}
+                </div>
+                <div>
+                    <div class="member-bal">฿${m.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
+                    <div class="member-int">+฿${m.totalInterest.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ดอกเบี้ยสะสม</div>
+                </div>
+            </div>`;
+        });
+        document.getElementById('memberRows').innerHTML =
+            memberHtml || '<div class="loading-row">ไม่มีข้อมูลสมาชิกที่ฝากเงิน</div>';
+
+        // --- doughnut chart ---
+        const top6   = data.members.slice(0, 6);
+        const others = data.members.slice(6).reduce((s, m) => s + m.balance, 0);
+        const labels = top6.map(m => m.name);
+        const values = top6.map(m => m.balance);
+        const clrs   = CHART_COLORS.slice(0, top6.length);
+        if (others > 0) { labels.push('อื่น ๆ'); values.push(others); clrs.push('#888780'); }
+
+        // legend
+        const totalBal = values.reduce((s, v) => s + v, 0);
+        let legendHtml = '';
+        labels.forEach((lbl, i) => {
+            const pct = totalBal > 0 ? (values[i] / totalBal * 100).toFixed(0) : 0;
+            legendHtml += `<span>
+                <span class="legend-sq" style="background:${clrs[i]};"></span>
+                ${lbl.split(' ')[0]} ${pct}%
+            </span>`;
+        });
+        document.getElementById('chartLegend').innerHTML = legendHtml;
+
+        if (savingsChartInstance) savingsChartInstance.destroy();
+        savingsChartInstance = new Chart(document.getElementById('savingsChart'), {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: clrs,
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ฿${ctx.raw.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`
+                        }
+                    }
+                }
+            }
+        });
+
+    } catch (err) {
+        document.getElementById('barRows').innerHTML =
+            '<div class="loading-row" style="color:#dc2626;">โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
+    }
+}
+
+async function calcInterest() {
+    const yearBE = parseInt(document.getElementById('interestYear').value);
+    const year   = yearBE - 543;
+    const rate   = parseFloat(document.getElementById('interestRate').value);
+
+    if (isNaN(year) || isNaN(rate) || rate <= 0) {
+        return Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกปีและอัตราดอกเบี้ยให้ครบ', 'warning');
+    }
+
+    const { isConfirmed } = await Swal.fire({
+        title: `ยืนยันคิดดอกเบี้ยปี ${yearBE}?`,
+        html: `อัตรา <b>${rate}%</b> ต่อปี<br>
+               <small class="text-danger">ดำเนินการได้ครั้งเดียวต่อปี</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#185FA5',
+        confirmButtonText: 'ยืนยัน',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!isConfirmed) return;
+
+    Swal.fire({ title: 'กำลังคำนวณ...', didOpen: () => Swal.showLoading() });
+
+    try {
+        const res  = await fetch('/Member/CalculateAnnualInterest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ year, rate })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            const rows = data.results.map(r =>
+                `<tr>
+                    <td>${r.name}</td>
+                    <td class="text-end">฿${Number(r.principal).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                    <td class="text-end text-success fw-bold">+฿${Number(r.interest).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                </tr>`
+            ).join('');
+
+            await Swal.fire({
+                title: `คิดดอกเบี้ยปี ${yearBE} สำเร็จ`,
+                html: `<div style="max-height:300px; overflow-y:auto;">
+                           <table class="table table-sm">
+                               <thead>
+                                   <tr><th>ชื่อ</th><th class="text-end">ยอดฝาก</th><th class="text-end">ดอกเบี้ย</th></tr>
+                               </thead>
+                               <tbody>${rows}</tbody>
+                           </table>
+                       </div>`,
+                icon: 'success'
+            });
+
+            loadSavingsSummary();
+        } else {
+            Swal.fire('ไม่สำเร็จ', data.message, 'error');
+        }
+    } catch {
+        Swal.fire('ผิดพลาด', 'การเชื่อมต่อล้มเหลว กรุณาลองใหม่', 'error');
+    }
+}
+
+// โหลดอัตโนมัติเมื่อเปิดหน้า
+loadSavingsSummary();
+</script>

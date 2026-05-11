@@ -13,4 +13,14 @@ namespace POOC.Models
         public DateTime TransactionDate { get; set; } = DateTime.Now;
         public string Description { get; set; } = string.Empty;
     }
+    public class SavingsInterest
+    {
+        public int Id { get; set; }
+        public int MemberId { get; set; }
+        public int Year { get; set; }
+        public decimal PrincipalSnapshot { get; set; }  
+        public decimal Rate { get; set; }               
+        public decimal InterestAmount { get; set; }    
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
+    }
 }

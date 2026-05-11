@@ -174,7 +174,6 @@ public class MemberController : Controller
             history = history 
         });
     }
-
     [HttpPost]
     public IActionResult SaveTransaction([FromBody] SavingsRequest req)
     {
@@ -197,11 +196,92 @@ public class MemberController : Controller
 
         return Json(new { success = true });
     }
-
-    // คลาสตัวช่วยรับข้อมูลจาก JSON
     public class SavingsRequest {
         public int MemberId { get; set; }
         public decimal Amount { get; set; }
         public string Type { get; set; } = string.Empty;
+    }
+    [HttpPost]
+    public IActionResult CalculateAnnualInterest([FromBody] InterestRequest req)
+    {
+        int year = req.Year > 0 ? req.Year : DateTime.Now.Year;
+        decimal rate = req.Rate > 0 ? req.Rate : 5m; // default 5%
+
+        var alreadyDone = _context.SavingsInterests.Any(x => x.Year == year);
+        if (alreadyDone)
+            return Json(new { success = false, message = $"คิดดอกเบี้ยปี {year} ไปแล้ว" });
+
+        var members = _context.Members.IgnoreQueryFilters().ToList();
+        var results = new List<object>();
+
+        foreach (var m in members)
+        {
+            var balance = _context.Savings
+                .Where(s => s.MemberId == m.Id)
+                .Sum(s => (decimal?)s.Amount) ?? 0;
+
+            if (balance <= 0) continue;
+
+            decimal interest = Math.Round(balance * rate / 100, 2);
+
+            _context.SavingsInterests.Add(new SavingsInterest {
+                MemberId = m.Id,
+                Year = year,
+                PrincipalSnapshot = balance,
+                Rate = rate,
+                InterestAmount = interest
+            });
+
+            var newBalance = balance + interest;
+            _context.Savings.Add(new Savings {
+                MemberId = m.Id,
+                Amount = interest,
+                Balance = newBalance,
+                Description = $"ดอกเบี้ยเงินฝากประจำปี {year} ({rate}%)"
+            });
+
+            results.Add(new {
+                name = $"{m.FirstName} {m.LastName}",
+                principal = balance,
+                interest
+            });
+        }
+
+        _context.SaveChanges();
+        return Json(new { success = true, year, rate, results });
+    }
+    [HttpGet]
+    public IActionResult GetSavingsSummary()
+    {
+        var members = _context.Members.IgnoreQueryFilters().ToList();
+        var summary = members.Select(m => {
+            var balance = _context.Savings
+                .Where(s => s.MemberId == m.Id)
+                .Sum(s => (decimal?)s.Amount) ?? 0;
+
+            var totalInterest = _context.SavingsInterests
+                .Where(x => x.MemberId == m.Id)
+                .Sum(x => (decimal?)x.InterestAmount) ?? 0;
+
+            return new {
+                memberId = m.Id,
+                name = $"{m.FirstName} {m.LastName}",
+                balance,
+                totalInterest
+            };
+        })
+        .Where(x => x.balance > 0 || x.totalInterest > 0)
+        .OrderByDescending(x => x.balance)
+        .ToList();
+
+        return Json(new {
+            members = summary,
+            totalBalance = summary.Sum(x => x.balance),
+            totalInterest = summary.Sum(x => x.totalInterest)
+        });
+    }
+    public class InterestRequest {
+        public int Year { get; set; }
+        public decimal Rate { get; set; }
     }
 }

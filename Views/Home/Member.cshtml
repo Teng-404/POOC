@@ -7,7 +7,7 @@
     </li>
     <li class="nav-item">
         <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")" 
-           asp-controller="Home" asp-action="Dashboard">ข้อมูลกู้ยืม</a>
+           asp-controller="Home" asp-action="Dashboard">ภาพรวม</a>
     </li>
 </ul>
 
@@ -352,6 +352,12 @@ function searchMember() {
                                 onclick="openEdit('${m.id}','${m.firstName}','${m.lastName}','${m.role}','${m.citizenId}','${m.phone}','${m.address}')">
                             ประวัติ
                         </button>
+                        <button class="btn btn-primary btn-sm" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#savingsModal" 
+                                            onclick="openSavings('${m.id}','${m.firstName}')">
+                                        เงินฝาก
+                                    </button>
                         <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#loanModal"
                             onclick="openLoan(${m.id},'${m.firstName}','${m.lastName}')">เงินกู้</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id}, '${m.firstName} ${m.lastName}')">ลบ</button>
