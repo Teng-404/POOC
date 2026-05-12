@@ -1,178 +1,240 @@
-﻿@model POOC.Models.MemberViewModel
+@model POOC.Models.MemberViewModel
 
-<ul class="nav nav-tabs">
-    <li class="nav-item">
-        <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Member" ? "active" : "")" 
+<style>
+    .db-tabs { display: flex; gap: 2px; border-bottom: 1px solid #e5e7eb; margin-bottom: 1.5rem; }
+    .db-tab { padding: 8px 16px; font-size: 14px; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .db-tab.active { color: #111827; border-bottom-color: #111827; font-weight: 500; }
+    .db-tab:hover { color: #111827; text-decoration: none; }
+    .db-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .db-title { font-size: 22px; font-weight: 500; color: #111827; margin: 0 0 4px; }
+    .db-subtitle { font-size: 13px; color: #6b7280; margin: 0; }
+
+    .toolbar { display: flex; gap: 10px; margin-bottom: 1rem; }
+    .btn-add { padding: 8px 18px; font-size: 13px; font-weight: 500; background: #185FA5; color: #fff; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+    .btn-add:hover { background: #0C447C; }
+
+    .add-card { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; display: none; }
+    .add-card.open { display: block; }
+    .add-card-title { font-size: 13px; font-weight: 500; color: #111827; margin-bottom: 10px; }
+
+    .member-table-wrap { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }
+    .member-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .member-table thead tr { background: #f9fafb; }
+    .member-table th { padding: 10px 14px; text-align: left; font-weight: 500; color: #6b7280; font-size: 12px; border-bottom: 0.5px solid #e5e7eb; white-space: nowrap; }
+    .member-table td { padding: 10px 14px; border-bottom: 0.5px solid #f3f4f6; color: #111827; vertical-align: middle; }
+    .member-table tbody tr:last-child td { border-bottom: none; }
+    .member-table tbody tr:hover { background: #fafafa; }
+    .num-cell { color: #9ca3af; font-size: 12px; width: 36px; }
+    .name-cell { display: flex; align-items: center; gap: 9px; }
+    .avatar-sm { width: 28px; height: 28px; border-radius: 50%; background: #dbeafe; color: #185FA5; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0; }
+    .role-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #f3f4f6; color: #6b7280; }
+    .action-group { display: flex; gap: 5px; flex-wrap: nowrap; }
+    .btn-act { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 0.5px solid #e5e7eb; background: #fff; cursor: pointer; white-space: nowrap; }
+    .btn-act.profile  { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+    .btn-act.profile:hover  { background: #fef3c7; }
+    .btn-act.savings  { color: #185FA5; border-color: #bfdbfe; background: #eff6ff; }
+    .btn-act.savings:hover  { background: #dbeafe; }
+    .btn-act.loan     { color: #0F6E56; border-color: #99f6e4; background: #f0fdf4; }
+    .btn-act.loan:hover     { background: #dcfce7; }
+    .btn-act.del      { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
+    .btn-act.del:hover      { background: #fee2e2; }
+    .empty-row { text-align: center; padding: 40px; color: #9ca3af; font-size: 13px; }
+
+    .modal-content { border: 0.5px solid #e5e7eb; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
+    .modal-header { border-bottom: 0.5px solid #f3f4f6; padding: 1rem 1.25rem; }
+    .modal-title { font-size: 15px; font-weight: 500; color: #111827; }
+    .modal-footer { border-top: 0.5px solid #f3f4f6; padding: 0.75rem 1.25rem; }
+    .modal-body { padding: 1.25rem; }
+    .form-label-sm { font-size: 12px; color: #6b7280; margin-bottom: 4px; display: block; }
+    .extra-info { background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    .extra-info-title { font-size: 12px; color: #9ca3af; margin-bottom: 10px; }
+    .btn-modal-save  { padding: 7px 20px; font-size: 13px; font-weight: 500; background: #185FA5; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    .btn-modal-save:hover  { background: #0C447C; }
+    .btn-modal-close { padding: 7px 16px; font-size: 13px; background: #fff; color: #6b7280; border: 0.5px solid #e5e7eb; border-radius: 8px; cursor: pointer; }
+    .btn-modal-close:hover { background: #f9fafb; }
+
+    .loan-header-row { background: #f9fafb; border-radius: 8px; padding: 10px 14px; margin-bottom: 2px; font-size: 13px; }
+    .badge-paid { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #dcfce7; color: #166534; }
+    .btn-pay { font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 0.5px solid #bfdbfe; background: #eff6ff; color: #185FA5; cursor: pointer; }
+    .btn-pay:hover { background: #dbeafe; }
+    .btn-cancel-pay { font-size: 11px; padding: 2px 6px; border-radius: 6px; border: none; background: transparent; color: #dc2626; cursor: pointer; }
+
+    .balance-display { background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 1rem; }
+    .balance-label  { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+    .balance-amount { font-size: 22px; font-weight: 500; color: #185FA5; }
+
+    @@media (max-width: 768px) {
+        .action-group { flex-wrap: wrap; }
+        .toolbar { flex-wrap: wrap; }
+    }
+</style>
+
+<div class="container mt-4">
+
+    <!-- TABS -->
+    <div class="db-tabs">
+        <a class="db-tab @(ViewContext.RouteData.Values["action"]?.ToString() == "Member" ? "active" : "")"
            asp-controller="Home" asp-action="Member">สมาชิก</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")" 
+        <a class="db-tab @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")"
            asp-controller="Home" asp-action="Dashboard">ภาพรวม</a>
-    </li>
-</ul>
+    </div>
 
-<div class="tab-content mt-3">
+    <!-- HEADER -->
+    <div class="db-header">
+        <div>
+            <p class="db-title">รายชื่อสมาชิก</p>
+            <p class="db-subtitle">ทั้งหมด @(Model.Members?.Count ?? 0) คน</p>
+        </div>
+        <button class="btn-add" onclick="toggleAddForm()">
+            <i class="bi bi-plus-lg"></i> เพิ่มสมาชิก
+        </button>
+    </div>
 
-<!-- ================= MEMBER ================= -->
-    <div class="tab-pane fade show active" id="memberTab">
-
-        <div class="container mt-4">
-
-            <!-- SEARCH -->
-            <input type="text" id="searchBox"
-                class="form-control mb-2"
-                placeholder="ค้นหาสมาชิก..."
-                onkeyup="searchMember()" />
-
-            <!-- ADD MEMBER -->
-            <form asp-action="Add" asp-controller="Member" method="post" class="row g-2 mt-3">
+    <!-- ADD FORM -->
+    <div class="add-card" id="addCard">
+        <div class="add-card-title">ข้อมูลสมาชิกใหม่</div>
+        <form asp-action="Add" asp-controller="Member" method="post">
+            <div class="row g-2">
                 <div class="col-md-4">
-                    <input type="text" name="firstName" class="form-control" placeholder="ชื่อ" required />
+                    <input type="text" name="firstName" class="form-control form-control-sm" placeholder="ชื่อ" required />
                 </div>
-
                 <div class="col-md-4">
-                    <input type="text" name="lastName" class="form-control" placeholder="นามสกุล" required />
+                    <input type="text" name="lastName" class="form-control form-control-sm" placeholder="นามสกุล" required />
                 </div>
-
                 <div class="col-md-3">
-                    <input type="text" name="role" class="form-control" placeholder="อาชีพ" required />
+                    <input type="text" name="role" class="form-control form-control-sm" placeholder="อาชีพ" required />
                 </div>
-
                 <div class="col-md-1">
-                    <button class="btn btn-primary w-100">+</button>
+                    <button type="submit" class="btn-add w-100" style="padding:6px 0;">บันทึก</button>
                 </div>
-            </form>
+            </div>
+        </form>
+    </div>
 
-            <!-- TABLE -->
-            <table class="table table-bordered mt-4">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>ชื่อ</th>
-                        <th>นามสกุล</th>
-                        <th>อาชีพ</th>
-                        <th>จัดการ</th>
-                    </tr>
-                </thead>
+    <!-- SEARCH -->
+    <div class="toolbar">
+        <input type="text" id="searchBox" class="form-control form-control-sm"
+               placeholder="ค้นหาชื่อ นามสกุล หรืออาชีพ..."
+               onkeyup="searchMember()" />
+    </div>
 
-                <tbody>
-                    @if (Model.Members != null && Model.Members.Count > 0)
+    <!-- TABLE -->
+    <div class="member-table-wrap">
+        <table class="member-table">
+            <thead>
+                <tr>
+                    <th class="num-cell">#</th>
+                    <th>ชื่อ-นามสกุล</th>
+                    <th>อาชีพ</th>
+                    <th style="text-align:right;">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="memberTableBody">
+                @if (Model.Members != null && Model.Members.Count > 0)
+                {
+                    for (int i = 0; i < Model.Members.Count; i++)
                     {
-                        for (int i = 0; i < Model.Members.Count; i++)
-                        {
-                            var m = Model.Members[i];
-
-                            <tr>
-                                <td>@(i + 1)</td>
-
-                                <td>@m.FirstName</td>
-                                <td>@m.LastName</td>
-                                <td>@m.Role</td>
-
-                                <td>
-
-                                    <!-- PROFILE -->
-                                    <button class="btn btn-warning btn-sm"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editModal"
-                                            onclick="openEdit('@m.Id','@m.FirstName','@m.LastName','@m.Role','@m.CitizenId','@m.Phone','@m.Address')">
-                                        ประวัติ
-                                    </button>
-
-                                    <!-- SAVINGS -->
-                                    <button class="btn btn-primary btn-sm" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#savingsModal" 
-                                            onclick="openSavings(@m.Id, '@m.FirstName')">
-                                        เงินฝาก
-                                    </button>
-
-                                    <!-- LOAN -->
-                                    <button class="btn btn-info btn-sm"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#loanModal"
-                                            onclick="openLoan(@m.Id,'@m.FirstName','@m.LastName')">
-                                        เงินกู้
-                                    </button>
-
-                                    <!-- DELETE -->
-                                    @* <form asp-action="Delete" asp-controller="Member" method="post" ...>
-                                        <input type="hidden" name="id" value="@m.Id" />
-                                        <button class="btn btn-danger btn-sm">ลบ</button>
-                                    </form> 
-                                    *@
-                                    <button class="btn btn-danger btn-sm" onclick="deleteMember(@m.Id, '@m.FirstName @m.LastName')">ลบ</button>
-                                </td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
+                        var m = Model.Members[i];
+                        var initials = (m.FirstName.Length > 0 ? m.FirstName[0].ToString() : "")
+                                     + (m.LastName.Length > 0  ? m.LastName[0].ToString()  : "");
                         <tr>
-                            <td colspan="5" class="text-center">ไม่มีข้อมูล</td>
+                            <td class="num-cell">@(i + 1)</td>
+                            <td>
+                                <div class="name-cell">
+                                    <div class="avatar-sm">@initials</div>
+                                    <span>@m.FirstName @m.LastName</span>
+                                </div>
+                            </td>
+                            <td><span class="role-badge">@m.Role</span></td>
+                            <td style="text-align:right;">
+                                <div class="action-group" style="justify-content:flex-end;">
+                                    <button class="btn-act profile"
+                                            data-bs-toggle="modal" data-bs-target="#editModal"
+                                            onclick="openEdit('@m.Id')">
+                                        <i class="bi bi-person-lines-fill"></i> ประวัติ
+                                    </button>
+                                    <button class="btn-act savings"
+                                            data-bs-toggle="modal" data-bs-target="#savingsModal"
+                                            onclick="openSavings(@m.Id, '@m.FirstName')">
+                                        <i class="bi bi-piggy-bank"></i> เงินฝาก
+                                    </button>
+                                    <button class="btn-act loan"
+                                            data-bs-toggle="modal" data-bs-target="#loanModal"
+                                            onclick="openLoan(@m.Id,'@m.FirstName','@m.LastName')">
+                                        <i class="bi bi-file-earmark-text"></i> เงินกู้
+                                    </button>
+                                    <button class="btn-act del"
+                                            onclick="deleteMember(@m.Id, '@m.FirstName @m.LastName')">
+                                        <i class="bi bi-trash3"></i> ลบ
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
                     }
-                </tbody>
-            </table>
-
-        </div>
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="4" class="empty-row">
+                            <i class="bi bi-people" style="font-size:24px; display:block; margin-bottom:8px;"></i>
+                            ยังไม่มีสมาชิก กดปุ่ม "เพิ่มสมาชิก" เพื่อเริ่มต้น
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
+
 </div>
 
 <!-- ================= PROFILE MODAL ================= -->
 <div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-
             <div class="modal-header">
-                <h5 class="modal-title">ประวัติสมาชิก</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-person-lines-fill" style="margin-right:6px;"></i>ประวัติสมาชิก
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
             <div class="modal-body">
                 <input type="hidden" id="editId" />
-
-                <div class="mb-2">
-                    <label>ชื่อ</label>
-                    <input type="text" id="editFirstName" class="form-control" />
-                </div>
-
-                <div class="mb-2">
-                    <label>นามสกุล</label>
-                    <input type="text" id="editLastName" class="form-control" />
-                </div>
-
-                <div class="mb-2">
-                    <label>อาชีพ</label>
-                    <input type="text" id="editRole" class="form-control" />
-                </div>
-
-                <div class="mt-4 p-3 border rounded bg-light">
-                    <h6 class="text-muted border-bottom pb-2">
-                        <i class="bi bi-info-circle"></i> ข้อมูลเพิ่มเติมอื่น ๆ
-                    </h6>
-                    <div class="mb-2">
-                        <label class="form-label small fw-bold">เลขบัตรประชาชน</label>
-                        <input type="text" id="editCitizenId" class="form-control form-control-sm" placeholder="X-XXXX-XXXXX-XX-X" />
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label-sm">ชื่อ</label>
+                        <input type="text" id="editFirstName" class="form-control form-control-sm" />
                     </div>
-
-                    <div class="mb-2">
-                        <label class="form-label small fw-bold">เบอร์โทรศัพท์</label>
-                        <input type="text" id="editPhone" class="form-control form-control-sm" placeholder="0XX-XXX-XXXX" />
+                    <div class="col-6">
+                        <label class="form-label-sm">นามสกุล</label>
+                        <input type="text" id="editLastName" class="form-control form-control-sm" />
                     </div>
-
-                    <div class="mb-2">
-                        <label class="form-label small fw-bold">ที่อยู่</label>
-                        <textarea id="editAddress" class="form-control form-control-sm" rows="2"></textarea>
+                    <div class="col-12">
+                        <label class="form-label-sm">อาชีพ</label>
+                        <input type="text" id="editRole" class="form-control form-control-sm" />
+                    </div>
+                </div>
+                <div class="extra-info">
+                    <div class="extra-info-title">ข้อมูลเพิ่มเติม</div>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label-sm">เลขบัตรประชาชน</label>
+                            <input type="text" id="editCitizenId" class="form-control form-control-sm" placeholder="X-XXXX-XXXXX-XX-X" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label-sm">เบอร์โทรศัพท์</label>
+                            <input type="text" id="editPhone" class="form-control form-control-sm" placeholder="0XX-XXX-XXXX" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label-sm">ที่อยู่</label>
+                            <textarea id="editAddress" class="form-control form-control-sm" rows="2"></textarea>
+                        </div>
                     </div>
                 </div>
             </div>
-
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
-                <button type="button" class="btn btn-success" onclick="saveEdit()">บันทึก</button>
+                <button type="button" class="btn-modal-close" data-bs-dismiss="modal">ปิด</button>
+                <button type="button" class="btn-modal-save" onclick="saveEdit()">บันทึก</button>
             </div>
-
         </div>
     </div>
 </div>
@@ -183,63 +245,57 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    จัดการเงินกู้ของ <span id="loanName"></span>
+                    <i class="bi bi-file-earmark-text" style="margin-right:6px;"></i>
+                    เงินกู้ของ <span id="loanName"></span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
             <div class="modal-body">
-
-                <!-- FORM LOAN -->
                 <form onsubmit="loadSchedule(event)">
-
                     <input type="hidden" id="loanMemberId" />
-
-                    <div class="row g-2">
-
-                        <div class="col-md-4">
-                            <input type="number" step="0.01" name="amount" class="form-control" placeholder="เงินกู้" required />
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label-sm">เงินกู้ (บาท)</label>
+                            <input type="number" step="0.01" name="amount" class="form-control form-control-sm" placeholder="0.00" required />
                         </div>
-
-                        <div class="col-md-4">
-                            <input type="number" step="0.01" name="rate" class="form-control" placeholder="ดอกเบี้ย (%)" required />
+                        <div class="col-md-3">
+                            <label class="form-label-sm">ดอกเบี้ย (%/ปี)</label>
+                            <input type="number" step="0.01" name="rate" class="form-control form-control-sm" placeholder="0.00" required />
                         </div>
-
-                        <div class="col-md-4">
-                            <input type="number" name="months" class="form-control" placeholder="งวด" required />
+                        <div class="col-md-3">
+                            <label class="form-label-sm">จำนวนงวด</label>
+                            <input type="number" name="months" class="form-control form-control-sm" placeholder="12" required />
                         </div>
-
+                        <div class="col-md-3">
+                            <button type="submit" class="btn-modal-save w-100">
+                                <i class="bi bi-calculator"></i> คำนวณ
+                            </button>
+                        </div>
                     </div>
-
-                    <button class="btn btn-success mt-2">คำนวณ</button>
-
                 </form>
 
-                <hr />
+                <div style="margin: 1rem 0; border-top: 0.5px solid #f3f4f6;"></div>
 
-                <!-- TABLE AJAX -->
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>งวด</th>
-                            <th>ค่างวด</th>
-                            <th>เงินต้น</th>
-                            <th>ดอกเบี้ย</th>
-                            <th>คงเหลือ</th>
-                            <th>สถานะ</th>
-                        </tr>
-                    </thead>
+                <div style="max-height: 380px; overflow-y: auto;">
+                    <table class="member-table">
+                        <thead>
+                            <tr>
+                                <th>งวด</th><th>ค่างวด</th><th>เงินต้น</th>
+                                <th>ดอกเบี้ย</th><th>คงเหลือ</th><th>สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loanTableBody">
+                            <tr><td colspan="6" class="empty-row" style="padding:20px;">กรอกข้อมูลแล้วกดคำนวณ</td></tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                    <tbody id="loanTableBody">
-                        <tr>
-                            <td colspan="6" class="text-center">ยังไม่มีข้อมูล</td>
-                        </tr>
-                    </tbody>
-
-                </table>
-                <button class="btn btn-primary mt-2" onclick="saveLoan()">บันทึก</button>
+                <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+                    <button class="btn-modal-save" onclick="saveLoan()">
+                        <i class="bi bi-floppy"></i> บันทึกสัญญา
+                    </button>
+                </div>
             </div>
-
         </div>
     </div>
 </div>
@@ -248,51 +304,59 @@
 <div class="modal fade" id="savingsModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header py-2">
-                <h6 class="modal-title">จัดการเงินฝากของ <span id="savingsMemberName"></span></h6>
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-piggy-bank" style="margin-right:6px;"></i>
+                    เงินฝากของ <span id="savingsMemberName"></span>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-3">
+            <div class="modal-body">
                 <input type="hidden" id="savingsMemberId" />
-                
+
+                <div class="balance-display">
+                    <div class="balance-label">ยอดเงินคงเหลือปัจจุบัน</div>
+                    <div class="balance-amount" id="currentBalance">0.00</div>
+                </div>
+
                 <div class="row g-2 mb-3">
-                    <div class="col-6">
-                        <input type="number" id="savingsAmount" class="form-control" placeholder="จำนวนเงิน">
+                    <div class="col-7">
+                        <label class="form-label-sm">จำนวนเงิน (บาท)</label>
+                        <input type="number" id="savingsAmount" class="form-control form-control-sm" placeholder="0.00" />
                     </div>
-                    <div class="col-6">
-                        <select id="transType" class="form-select">
+                    <div class="col-5">
+                        <label class="form-label-sm">ประเภท</label>
+                        <select id="transType" class="form-select form-select-sm">
                             <option value="deposit">ฝากเงิน (+)</option>
                             <option value="withdraw">ถอนเงิน (-)</option>
                         </select>
                     </div>
                     <div class="col-12">
-                        <button class="btn btn-success btn-sm w-100" onclick="saveSavings()">ยืนยันรายการ</button>
+                        <button class="btn-modal-save w-100" onclick="saveSavings()">
+                            <i class="bi bi-check-lg"></i> ยืนยันรายการ
+                        </button>
                     </div>
                 </div>
 
-                <div class="text-center mb-3 p-2 bg-light border rounded">
-                    <small class="text-muted">ยอดเงินคงเหลือปัจจุบัน:</small>
-                    <strong class="text-primary h5 mb-0 ms-2" id="currentBalance">0.00</strong>
-                </div>
+                <div style="border-top:0.5px solid #f3f4f6; margin-bottom:10px;"></div>
 
-                <div class="table-responsive" style="max-height: 400px;">
-                    <table class="table table-sm border shadow-sm">
+                <div style="max-height:320px; overflow-y:auto;">
+                    <table class="member-table">
                         <thead>
-                            <tr class="text-center align-middle" style="font-size: 0.85rem;">
-                                <th>ลำดับ</th>
-                                <th>วันที่</th>
-                                <th>รายการ</th>
-                                <th>จำนวนเงิน</th>
-                                <th>คงเหลือ</th>
+                            <tr>
+                                <th>#</th><th>วันที่</th><th>รายการ</th>
+                                <th style="text-align:right;">จำนวน</th>
+                                <th style="text-align:right;">คงเหลือ</th>
                             </tr>
                         </thead>
-                        <tbody id="savingsHistoryBody" style="font-size: 0.8rem;">
-                            </tbody>
+                        <tbody id="savingsHistoryBody">
+                            <tr><td colspan="5" class="empty-row" style="padding:16px;">ยังไม่มีรายการ</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
-            <div class="modal-footer py-1">
-                <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal">บันทึก</button>
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-close" data-bs-dismiss="modal">ปิด</button>
             </div>
         </div>
     </div>
@@ -300,71 +364,51 @@
 
 <!-- ================= JS ================= -->
 <script>
-// --- ส่วนของสมาชิก (Member) ---
-
-function addMember(e) {
-    e.preventDefault(); // ป้องกันการรีโหลดหน้าจาก Form
-    let firstName = document.querySelector("input[name='firstName']").value;
-    let lastName = document.querySelector("input[name='lastName']").value;
-    let role = document.querySelector("input[name='role']").value;
-
-    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => { Swal.showLoading() } });
-
-    fetch('/Member/Add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName, lastName, role })
-    })
-    .then(res => res.json())
-    .then(res => {
-        if (res.success) {
-            Swal.fire('สำเร็จ!', 'เพิ่มสมาชิกเรียบร้อยแล้ว', 'success')
-            .then(() => location.reload());
-        } else {
-            Swal.fire('ผิดพลาด', res.message, 'error');
-        }
-    });
+function toggleAddForm() {
+    document.getElementById('addCard').classList.toggle('open');
 }
 
-let timer;
+let searchTimer;
 function searchMember() {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-        let keyword = document.getElementById("searchBox").value;
-        fetch('/Member/Search?keyword=' + keyword)
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        const keyword = document.getElementById('searchBox').value;
+        fetch('/Member/Search?keyword=' + encodeURIComponent(keyword))
         .then(res => res.json())
         .then(data => {
-            let html = "";
+            let html = '';
             if (!data || data.length === 0) {
-                html = `<tr><td colspan="5" class="text-center">ไม่พบข้อมูล</td></tr>`;
+                html = `<tr><td colspan="4" class="empty-row">ไม่พบสมาชิกที่ค้นหา</td></tr>`;
+            } else {
+                data.forEach((m, i) => {
+                    const initials = (m.firstName?.[0] ?? '') + (m.lastName?.[0] ?? '');
+                    html += `<tr>
+                        <td class="num-cell">${i + 1}</td>
+                        <td><div class="name-cell">
+                            <div class="avatar-sm">${initials}</div>
+                            <span>${m.firstName} ${m.lastName}</span>
+                        </div></td>
+                        <td><span class="role-badge">${m.role}</span></td>
+                        <td style="text-align:right;">
+                            <div class="action-group" style="justify-content:flex-end;">
+                                <button class="btn-act profile" data-bs-toggle="modal" data-bs-target="#editModal"
+                                    onclick="openEdit(${m.id})">
+                                    <i class="bi bi-person-lines-fill"></i> ประวัติ</button>
+                                <button class="btn-act savings" data-bs-toggle="modal" data-bs-target="#savingsModal"
+                                    onclick="openSavings(${m.id},'${m.firstName}')">
+                                    <i class="bi bi-piggy-bank"></i> เงินฝาก</button>
+                                <button class="btn-act loan" data-bs-toggle="modal" data-bs-target="#loanModal"
+                                    onclick="openLoan(${m.id},'${m.firstName}','${m.lastName}')">
+                                    <i class="bi bi-file-earmark-text"></i> เงินกู้</button>
+                                <button class="btn-act del"
+                                    onclick="deleteMember(${m.id},'${m.firstName} ${m.lastName}')">
+                                    <i class="bi bi-trash3"></i> ลบ</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
             }
-            data.forEach((m, i) => {
-                html += `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td>${m.firstName}</td>
-                    <td>${m.lastName}</td>
-                    <td>${m.role}</td>
-                    <td>
-                        <button class="btn btn-warning btn-sm" 
-                                data-bs-toggle="modal" 
-                                data-bs-target="#editModal" 
-                                onclick="openEdit('${m.id}','${m.firstName}','${m.lastName}','${m.role}','${m.citizenId}','${m.phone}','${m.address}')">
-                            ประวัติ
-                        </button>
-                        <button class="btn btn-primary btn-sm" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#savingsModal" 
-                                            onclick="openSavings('${m.id}','${m.firstName}')">
-                                        เงินฝาก
-                                    </button>
-                        <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#loanModal"
-                            onclick="openLoan(${m.id},'${m.firstName}','${m.lastName}')">เงินกู้</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id}, '${m.firstName} ${m.lastName}')">ลบ</button>
-                    </td>
-                </tr>`;
-            });
-            document.querySelector("table tbody").innerHTML = html;
+            document.getElementById('memberTableBody').innerHTML = html;
         });
     }, 300);
 }
@@ -374,104 +418,83 @@ function openEdit(id) {
     .then(res => res.json())
     .then(res => {
         if (res.success) {
-            document.getElementById("editId").value = res.data.id;
-            document.getElementById("editFirstName").value = res.data.firstName;
-            document.getElementById("editLastName").value = res.data.lastName;
-            document.getElementById("editRole").value = res.data.role;
-            document.getElementById("editCitizenId").value = res.data.citizenId || "";
-            document.getElementById("editPhone").value = res.data.phone || "";
-            document.getElementById("editAddress").value = res.data.address || "";
+            document.getElementById('editId').value        = res.data.id;
+            document.getElementById('editFirstName').value = res.data.firstName;
+            document.getElementById('editLastName').value  = res.data.lastName;
+            document.getElementById('editRole').value      = res.data.role;
+            document.getElementById('editCitizenId').value = res.data.citizenId || '';
+            document.getElementById('editPhone').value     = res.data.phone || '';
+            document.getElementById('editAddress').value   = res.data.address || '';
         }
     });
 }
 
 function saveEdit() {
     const data = {
-        Id: parseInt(document.getElementById("editId").value),
-        FirstName: document.getElementById("editFirstName").value,
-        LastName: document.getElementById("editLastName").value,
-        Role: document.getElementById("editRole").value,
-        CitizenId: document.getElementById("editCitizenId").value,
-        Phone: document.getElementById("editPhone").value,
-        Address: document.getElementById("editAddress").value
+        Id:        parseInt(document.getElementById('editId').value),
+        FirstName: document.getElementById('editFirstName').value,
+        LastName:  document.getElementById('editLastName').value,
+        Role:      document.getElementById('editRole').value,
+        CitizenId: document.getElementById('editCitizenId').value,
+        Phone:     document.getElementById('editPhone').value,
+        Address:   document.getElementById('editAddress').value
     };
-
     if (isNaN(data.Id)) return Swal.fire('ผิดพลาด', 'ไม่พบรหัสสมาชิก', 'error');
-
-    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => { Swal.showLoading() } });
-
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
     fetch('/Member/UpdateMember', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
     .then(res => res.json())
     .then(res => {
-        if (res.success) {
-            Swal.fire('สำเร็จ', 'อัปเดตข้อมูลแล้ว', 'success').then(() => location.reload());
-        } else {
-            Swal.fire('ผิดพลาด', res.message, 'error');
-        }
+        if (res.success) Swal.fire('สำเร็จ', 'อัปเดตข้อมูลแล้ว', 'success').then(() => location.reload());
+        else Swal.fire('ผิดพลาด', res.message, 'error');
     })
-    .catch(err => Swal.fire('ผิดพลาด', 'การเชื่อมต่อเซิร์ฟเวอร์ล้มเหลว', 'error'));
+    .catch(() => Swal.fire('ผิดพลาด', 'การเชื่อมต่อล้มเหลว', 'error'));
 }
 
-// --- ส่วนของเงินกู้ (Loan) ---
-
 function openLoan(id, firstName, lastName) {
-    document.getElementById("loanMemberId").value = id;
-    document.getElementById("loanName").innerText = firstName + " " + lastName;
-    document.getElementById("loanTableBody").innerHTML = "<tr><td colspan='6' class='text-center'>กรอกข้อมูลแล้วกดคำนวณ</td></tr>";
+    document.getElementById('loanMemberId').value = id;
+    document.getElementById('loanName').innerText = firstName + ' ' + lastName;
+    document.getElementById('loanTableBody').innerHTML =
+        '<tr><td colspan="6" class="empty-row" style="padding:20px;">กรอกข้อมูลแล้วกดคำนวณ</td></tr>';
     loadLoanHistory(id);
 }
 
 function loadSchedule(e) {
     e.preventDefault();
-    let memberId = parseInt(document.getElementById("loanMemberId").value);
-    let amount = e.target.amount.value;
-    let rate = e.target.rate.value;
-    let months = e.target.months.value;
-
-    document.getElementById("loanTableBody").innerHTML = "<tr><td colspan='6' class='text-center'>กำลังคำนวณ...</td></tr>";
-
-    fetch(`/Loan/GetLoanSchedule?memberId=${memberId}&amount=${amount}&rate=${rate}&months=${months}`)
+    const memberId = parseInt(document.getElementById('loanMemberId').value);
+    const { amount, rate, months } = e.target;
+    document.getElementById('loanTableBody').innerHTML =
+        '<tr><td colspan="6" class="empty-row" style="padding:16px;">กำลังคำนวณ...</td></tr>';
+    fetch(`/Loan/GetLoanSchedule?memberId=${memberId}&amount=${amount.value}&rate=${rate.value}&months=${months.value}`)
     .then(res => res.json())
     .then(data => {
-        let html = "";
-        data.forEach(x => {
-            html += `
-            <tr>
-                <td>${x.installment}</td>
-                <td>${x.payment.toFixed(2)}</td>
-                <td>${x.principal.toFixed(2)}</td>
-                <td>${x.interest.toFixed(2)}</td>
-                <td>${x.balance.toFixed(2)}</td>
-                <td>-</td>
-            </tr>`;
-        });
-        document.getElementById("loanTableBody").innerHTML = html;
+        document.getElementById('loanTableBody').innerHTML = data.map(x => `<tr>
+            <td>${x.installment}</td>
+            <td>${x.payment.toFixed(2)}</td>
+            <td>${x.principal.toFixed(2)}</td>
+            <td>${x.interest.toFixed(2)}</td>
+            <td>${x.balance.toFixed(2)}</td>
+            <td style="color:#9ca3af;">-</td>
+        </tr>`).join('');
     });
 }
 
 function saveLoan() {
-    let memberId = parseInt(document.getElementById("loanMemberId").value);
-    let amount = document.querySelector("input[name='amount']").value;
-    let rate = document.querySelector("input[name='rate']").value;
-    let months = document.querySelector("input[name='months']").value;
-
+    const memberId = parseInt(document.getElementById('loanMemberId').value);
+    const amount   = document.querySelector("input[name='amount']").value;
+    const rate     = document.querySelector("input[name='rate']").value;
+    const months   = document.querySelector("input[name='months']").value;
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
     fetch('/Loan/Create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ memberId, amount, rate, months })
     })
     .then(res => res.json())
     .then(res => {
-        if (res.success) {
-            alert("บันทึกสำเร็จ");
-            loadLoanHistory(memberId);
-        } else {
-            alert(res.message);
-        }
+        if (res.success) { Swal.fire('สำเร็จ', 'บันทึกสัญญาแล้ว', 'success'); loadLoanHistory(memberId); }
+        else Swal.fire('ผิดพลาด', res.message, 'error');
     });
 }
 
@@ -479,250 +502,184 @@ function loadLoanHistory(memberId) {
     fetch('/Loan/GetLoanHistory?memberId=' + memberId)
     .then(res => res.json())
     .then(data => {
-        let html = "";
         if (!data || data.length === 0) {
-            document.getElementById("loanTableBody").innerHTML = "<tr><td colspan='6' class='text-center'>ไม่มีข้อมูล</td></tr>";
+            document.getElementById('loanTableBody').innerHTML =
+                '<tr><td colspan="6" class="empty-row" style="padding:20px;">ยังไม่มีสัญญากู้</td></tr>';
             return;
         }
-
+        let html = '';
         data.forEach(loan => {
-            html += `
-            <tr style="background:#eee">
-                <td colspan="6">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span>
-                            <strong>เงินกู้:</strong> ${loan.amount.toLocaleString()} | 
-                            <strong>ดอกเบี้ย:</strong> ${loan.rate}% | 
-                            <strong>งวด:</strong> ${loan.months}
+            html += `<tr><td colspan="6" style="padding:0;">
+                <div class="loan-header-row">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:13px; color:#374151;">
+                            <strong>฿${loan.amount.toLocaleString('th-TH')}</strong>
+                            &nbsp;|&nbsp; ดอกเบี้ย <strong>${loan.rate}%</strong>
+                            &nbsp;|&nbsp; <strong>${loan.months}</strong> งวด
                         </span>
-                        <div>
-                            <a href="/Loan/DownloadContract?loanId=${loan.id}" target="_blank" class="btn btn-primary btn-sm me-1">
-                                <i class="fas fa-file-pdf"></i>พิมพ์สัญญา
+                        <div style="display:flex; gap:6px;">
+                            <a href="/Loan/DownloadContract?loanId=${loan.id}" target="_blank"
+                               style="font-size:12px; padding:4px 10px; border-radius:6px; border:0.5px solid #bfdbfe; background:#eff6ff; color:#185FA5; text-decoration:none;">
+                                <i class="bi bi-file-pdf"></i> พิมพ์สัญญา
                             </a>
-                            <button class="btn btn-danger btn-sm" onclick="deleteLoan(${loan.id})">ลบสัญญา</button>
+                            <button class="btn-act del" style="font-size:12px;" onclick="deleteLoan(${loan.id})">
+                                <i class="bi bi-trash3"></i> ลบ
+                            </button>
                         </div>
                     </div>
-                </td>
-            </tr>`;
-
+                </div>
+            </td></tr>`;
             loan.loanDetails.forEach(d => {
-                let statusContent = d.isPaid 
-                    ? `<span class="badge bg-success">จ่ายแล้ว</span>
-                       <button class="btn btn-link btn-sm text-danger p-0 ms-2" onclick="confirmCancelPay(${d.id})"><i class="bi bi-x-circle"></i>ยกเลิก</button>`
-                    : `<button class="btn btn-sm btn-primary" onclick="payMoney(${d.id})">จ่ายเงิน</button>`;
-                
-                html += `
-                <tr>
+                const statusContent = d.isPaid
+                    ? `<span class="badge-paid">จ่ายแล้ว</span>
+                       <button class="btn-cancel-pay" onclick="confirmCancelPay(${d.id})">
+                           <i class="bi bi-x-circle"></i> ยกเลิก</button>`
+                    : `<button class="btn-pay" onclick="payMoney(${d.id})">จ่ายเงิน</button>`;
+                html += `<tr>
                     <td>${d.installment}</td>
                     <td>${d.payment.toFixed(2)}</td>
                     <td>${d.principal.toFixed(2)}</td>
-                    <td>${d.interest > 0 ? d.interest.toFixed(2) : "-"}</td>
+                    <td>${d.interest > 0 ? d.interest.toFixed(2) : '-'}</td>
                     <td>${d.balance.toFixed(2)}</td>
                     <td>${statusContent}</td>
                 </tr>`;
             });
         });
-        document.getElementById("loanTableBody").innerHTML = html;
+        document.getElementById('loanTableBody').innerHTML = html;
     });
 }
 
-// --- ส่วนของเงินฝาก (Savings) ---
 function openSavings(id, name) {
-    document.getElementById("savingsMemberId").value = id;
-    document.getElementById("savingsMemberName").innerText = name;
-    document.getElementById("savingsAmount").value = ""; 
-
+    document.getElementById('savingsMemberId').value    = id;
+    document.getElementById('savingsMemberName').innerText = name;
+    document.getElementById('savingsAmount').value      = '';
     fetch('/Member/GetSavingsBalance?memberId=' + id)
-        .then(res => res.json())
-        .then(data => {
-            // ยอดเงินตัวบน
-            document.getElementById("currentBalance").innerText = 
-                data.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-
-            let html = "";
-            if (data.history && data.history.length > 0) {
-                // แสดงประวัติ โดยเรียงลำดับเหมือนงวดเงินกู้
-                data.history.forEach((item, index) => {
-                    const date = new Date(item.transactionDate).toLocaleDateString('th-TH');
-                    const isDeposit = item.amount >= 0;
-                    
-                    html += `
-                        <tr class="text-center align-middle">
-                            <td>${index + 1}</td>
-                            <td>${date}</td>
-                            <td class="text-start">${item.description}</td>
-                            <td class="${isDeposit ? 'text-success' : 'text-danger'}">
-                                ${isDeposit ? '+' : ''}${item.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                            </td>
-                            <td class="fw-bold bg-light">
-                                ${item.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                            </td>
-                        </tr>`;
-                });
-            } else {
-                html = '<tr><td colspan="5" class="text-center p-3 text-muted">ยังไม่พบรายการเคลื่อนไหว</td></tr>';
-            }
-            document.getElementById("savingsHistoryBody").innerHTML = html;
-        });
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById('currentBalance').innerText =
+            data.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+        let html = '';
+        if (data.history && data.history.length > 0) {
+            data.history.forEach((item, index) => {
+                const date      = new Date(item.transactionDate).toLocaleDateString('th-TH');
+                const isDeposit = item.amount >= 0;
+                html += `<tr>
+                    <td style="color:#9ca3af;">${index + 1}</td>
+                    <td>${date}</td>
+                    <td>${item.description}</td>
+                    <td style="text-align:right; color:${isDeposit ? '#059669' : '#dc2626'}; font-weight:500;">
+                        ${isDeposit ? '+' : ''}${item.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style="text-align:right; font-weight:500;">
+                        ${item.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                    </td>
+                </tr>`;
+            });
+        } else {
+            html = '<tr><td colspan="5" class="empty-row" style="padding:16px;">ยังไม่มีรายการ</td></tr>';
+        }
+        document.getElementById('savingsHistoryBody').innerHTML = html;
+    });
 }
 
 function saveSavings() {
     const data = {
-        MemberId: parseInt(document.getElementById("savingsMemberId").value),
-        Amount: parseFloat(document.getElementById("savingsAmount").value),
-        Type: document.getElementById("transType").value
+        MemberId: parseInt(document.getElementById('savingsMemberId').value),
+        Amount:   parseFloat(document.getElementById('savingsAmount').value),
+        Type:     document.getElementById('transType').value
     };
-
-    if (isNaN(data.Amount) || data.Amount <= 0) {
+    if (isNaN(data.Amount) || data.Amount <= 0)
         return Swal.fire('ผิดพลาด', 'กรุณาระบุจำนวนเงินให้ถูกต้อง', 'error');
-    }
-
     Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
-
     fetch('/Member/SaveTransaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
     .then(res => res.json())
     .then(res => {
-        if (res.success) {
-            Swal.fire('สำเร็จ', 'บันทึกรายการแล้ว', 'success').then(() => location.reload());
-        } else {
-            Swal.fire('ผิดพลาด', res.message, 'error');
-        }
+        if (res.success) Swal.fire('สำเร็จ', 'บันทึกรายการแล้ว', 'success').then(() => location.reload());
+        else Swal.fire('ผิดพลาด', res.message, 'error');
     });
 }
 
-// --- ส่วนของระบบความปลอดภัย (Delete & Cancel) ---
-
 window.deleteMember = async function(id, name) {
-    const { value: password } = await Swal.fire({
+    const { value: pw } = await Swal.fire({
         title: 'ยืนยันการลบสมาชิก?',
-        text: `คุณกำลังจะลบคุณ "${name}" ข้อมูลสัญญาและประวัติทั้งหมดจะหายไปถาวร!`,
-        icon: 'warning',
-        input: 'password',
-        inputLabel: 'กรุณาใส่รหัสผ่านเพื่อยืนยัน',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'ยืนยันการลบ',
-        cancelButtonText: 'ยกเลิก'
+        text: `คุณกำลังจะลบ "${name}" ข้อมูลทั้งหมดจะหายถาวร`,
+        icon: 'warning', input: 'password',
+        inputLabel: 'รหัสผ่านผู้ดูแลระบบ',
+        showCancelButton: true, confirmButtonColor: '#dc2626',
+        confirmButtonText: 'ยืนยันลบ', cancelButtonText: 'ยกเลิก'
     });
-
-    if (password === "1234") {
-        Swal.fire({ title: 'กำลังลบ...', didOpen: () => { Swal.showLoading() } });
-
-        // ส่ง ID ไปที่ MemberController
-        let formData = new FormData();
-        formData.append("id", id);
-
-        fetch('/Member/Delete', {
-            method: 'POST',
-            body: formData
-        })
+    if (pw === '1234') {
+        Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
+        const fd = new FormData(); fd.append('id', id);
+        fetch('/Member/Delete', { method: 'POST', body: fd })
         .then(res => res.json())
         .then(res => {
-            if (res.success) {
-                Swal.fire('สำเร็จ!', 'ลบสมาชิกเรียบร้อยแล้ว', 'success')
-                .then(() => location.reload()); // รีโหลดเพื่อให้รายชื่อในตารางอัปเดต
-            } else {
-                Swal.fire('ผิดพลาด', res.message, 'error');
-            }
+            if (res.success) Swal.fire('สำเร็จ', 'ลบสมาชิกแล้ว', 'success').then(() => location.reload());
+            else Swal.fire('ผิดพลาด', res.message, 'error');
         })
-        .catch(err => Swal.fire('Error', 'การเชื่อมต่อล้มเหลว', 'error'));
-    } else if (password !== undefined) {
-        Swal.fire('รหัสผ่านไม่ถูกต้อง!', '', 'error');
-    }
+        .catch(() => Swal.fire('Error', 'การเชื่อมต่อล้มเหลว', 'error'));
+    } else if (pw !== undefined) Swal.fire('รหัสผ่านไม่ถูกต้อง', '', 'error');
 };
 
 window.deleteLoan = async function(id) {
-    const { value: password } = await Swal.fire({
-        title: 'ยืนยันการลบสัญญา',
-        text: "เมื่อลบแล้ว ประวัติทั้งหมดจะหายไปถาวร!",
-        input: 'password',
-        inputLabel: 'กรุณาใส่รหัสผ่านเพื่อยืนยัน',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'ยืนยันการลบ',
-        cancelButtonText: 'ยกเลิก'
+    const { value: pw } = await Swal.fire({
+        title: 'ยืนยันการลบสัญญา', text: 'ประวัติทั้งหมดจะหายถาวร',
+        input: 'password', inputLabel: 'รหัสผ่านผู้ดูแลระบบ',
+        showCancelButton: true, confirmButtonColor: '#dc2626',
+        confirmButtonText: 'ยืนยันลบ', cancelButtonText: 'ยกเลิก'
     });
-
-    if (password === "1234") {
-        Swal.fire({ title: 'กำลังประมวลผล...', didOpen: () => { Swal.showLoading() } });
+    if (pw === '1234') {
+        Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
         fetch('/Loan/Delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: parseInt(id) })
         })
         .then(res => res.json())
         .then(res => {
-            if (res.success) {
-                Swal.fire('สำเร็จ!', 'ลบสัญญาเรียบร้อยแล้ว', 'success');
-                loadLoanHistory(document.getElementById("loanMemberId").value);
-            } else {
-                Swal.fire('ผิดพลาด', res.message || 'ไม่สามารถลบได้', 'error');
-            }
+            if (res.success) { Swal.fire('สำเร็จ', 'ลบสัญญาแล้ว', 'success'); loadLoanHistory(document.getElementById('loanMemberId').value); }
+            else Swal.fire('ผิดพลาด', res.message || 'ไม่สามารถลบได้', 'error');
         }).catch(() => Swal.fire('Error', 'การเชื่อมต่อล้มเหลว', 'error'));
-    } else if (password !== undefined) {
-        Swal.fire('รหัสผ่านไม่ถูกต้อง!', '', 'error');
-    }
+    } else if (pw !== undefined) Swal.fire('รหัสผ่านไม่ถูกต้อง', '', 'error');
 };
 
 async function confirmCancelPay(id) {
-    const { value: password } = await Swal.fire({
-        title: 'ยืนยันการยกเลิกชำระเงิน',
-        input: 'password',
-        inputLabel: 'กรุณาใส่รหัสผ่านผู้ดูแลระบบ',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'ยืนยันยกเลิก'
+    const { value: pw } = await Swal.fire({
+        title: 'ยืนยันยกเลิกชำระเงิน',
+        input: 'password', inputLabel: 'รหัสผ่านผู้ดูแลระบบ',
+        showCancelButton: true, confirmButtonColor: '#dc2626', confirmButtonText: 'ยืนยัน'
     });
-
-    if (password === "1234") {
+    if (pw === '1234') {
         fetch('/Loan/CancelPayment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ detailId: id })
         })
         .then(res => res.json())
         .then(res => {
-            if (res.success) {
-                Swal.fire('สำเร็จ!', 'ยกเลิกรายการเรียบร้อยแล้ว', 'success');
-                loadLoanHistory(document.getElementById("loanMemberId").value);
-            } else {
-                Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
-            }
+            if (res.success) { Swal.fire('สำเร็จ', 'ยกเลิกรายการแล้ว', 'success'); loadLoanHistory(document.getElementById('loanMemberId').value); }
+            else Swal.fire('ผิดพลาด', res.message, 'error');
         });
-    } else if (password !== undefined) {
-        Swal.fire('รหัสผ่านไม่ถูกต้อง', '', 'error');
-    }
+    } else if (pw !== undefined) Swal.fire('รหัสผ่านไม่ถูกต้อง', '', 'error');
 }
 
 function payMoney(id) {
     Swal.fire({
-        title: 'ยืนยันการชำระเงิน?',
-        text: "คุณต้องการบันทึกการชำระเงินงวดนี้ใช่หรือไม่?",
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'ใช่, จ่ายเงินแล้ว',
-        cancelButtonText: 'ยกเลิก'
-    }).then((result) => {
+        title: 'ยืนยันการชำระเงิน?', text: 'บันทึกการชำระเงินงวดนี้',
+        icon: 'question', showCancelButton: true,
+        confirmButtonColor: '#185FA5',
+        confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก'
+    }).then(result => {
         if (result.isConfirmed) {
             fetch('/Loan/PayInstallment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ detailId: id })
             })
             .then(res => res.json())
             .then(res => {
-                if (res.success) {
-                    Swal.fire('สำเร็จ!', 'บันทึกการจ่ายเงินแล้ว', 'success');
-                    loadLoanHistory(document.getElementById("loanMemberId").value); 
-                } else {
-                    Swal.fire('ผิดพลาด', res.message || "เกิดข้อผิดพลาด", 'error');
-                }
+                if (res.success) { Swal.fire('สำเร็จ', 'บันทึกการจ่ายเงินแล้ว', 'success'); loadLoanHistory(document.getElementById('loanMemberId').value); }
+                else Swal.fire('ผิดพลาด', res.message || 'เกิดข้อผิดพลาด', 'error');
             });
         }
     });
