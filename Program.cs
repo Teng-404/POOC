@@ -85,14 +85,14 @@ using (var scope = app.Services.CreateScope())
         )
     ");
 
-    EnsureColumn(context, "Members", "IsDeleted", "INTEGER NOT NULL DEFAULT 0");
-    EnsureColumn(context, "Members", "DeletedDate", "TEXT NULL");
-    EnsureColumn(context, "Members", "DeletedBy", "TEXT NULL");
-    EnsureColumn(context, "Loans", "IsDeleted", "INTEGER NOT NULL DEFAULT 0");
-    EnsureColumn(context, "Loans", "DeletedDate", "TEXT NULL");
-    EnsureColumn(context, "Loans", "DeletedBy", "TEXT NULL");
-    EnsureColumn(context, "Loans", "Status", "TEXT NOT NULL DEFAULT 'Active'");
-    EnsureColumn(context, "Loans", "ClosedDate", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Members", "IsDeleted", "INTEGER NOT NULL DEFAULT 0");
+    DatabaseInitializer.EnsureColumn(context, "Members", "DeletedDate", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Members", "DeletedBy", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "IsDeleted", "INTEGER NOT NULL DEFAULT 0");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "DeletedDate", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "DeletedBy", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "Status", "TEXT NOT NULL DEFAULT 'Active'");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "ClosedDate", "TEXT NULL");
 
     if (!context.SystemSettings.Any(x => x.Key == "PenaltyRate"))
     {
