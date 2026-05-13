@@ -83,14 +83,25 @@
     </div>
 
     <!-- HEADER -->
+    <!-- แทนที่ส่วน db-header ใน Member.cshtml -->
     <div class="db-header">
         <div>
-            <p class="db-title">รายชื่อสมาชิก</p>
+            <p class="db-title">
+                รายชื่อสมาชิก
+                <span id="overdueBadge" style="display:none; font-size:12px; background:#dc2626; color:#fff; border-radius:20px; padding:2px 10px; margin-left:8px; vertical-align:middle;">
+                    <i class="bi bi-exclamation-triangle-fill"></i> <span id="overdueCount">0</span> งวดเกินกำหนด
+                </span>
+            </p>
             <p class="db-subtitle">ทั้งหมด @(Model.Members?.Count ?? 0) คน</p>
         </div>
-        <button class="btn-add" onclick="toggleAddForm()">
-            <i class="bi bi-plus-lg"></i> เพิ่มสมาชิก
-        </button>
+        <div style="display:flex; gap:8px;">
+            <button class="btn-add" style="background:#059669;" onclick="exportExcel()">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
+            </button>
+            <button class="btn-add" onclick="toggleAddForm()">
+                <i class="bi bi-plus-lg"></i> เพิ่มสมาชิก
+            </button>
+        </div>
     </div>
 
     <!-- ADD FORM -->
@@ -284,7 +295,8 @@
                         <thead>
                             <tr>
                                 <th>งวด</th><th>ค่างวด</th><th>เงินต้น</th>
-                                <th>ดอกเบี้ย</th><th>คงเหลือ</th><th>สถานะ</th>
+                                <th>ดอกเบี้ย</th><th>คงเหลือ</th>
+                                <th>ครบกำหนด</th><th>สถานะ</th>
                             </tr>
                         </thead>
                         <tbody id="loanTableBody">
@@ -502,17 +514,17 @@ function saveLoan() {
 }
 
 function loadLoanHistory(memberId) {
-    fetch('/Loan/GetLoanHistory?memberId=' + memberId)
+    fetch('/Loan/GetLoanHistoryWithOverdue?memberId=' + memberId)
     .then(res => res.json())
     .then(data => {
         if (!data || data.length === 0) {
             document.getElementById('loanTableBody').innerHTML =
-                '<tr><td colspan="6" class="empty-row" style="padding:20px;">ยังไม่มีสัญญากู้</td></tr>';
+                '<tr><td colspan="7" class="empty-row" style="padding:20px;">ยังไม่มีสัญญากู้</td></tr>';
             return;
         }
         let html = '';
         data.forEach(loan => {
-            html += `<tr><td colspan="6" style="padding:0;">
+            html += `<tr><td colspan="7" style="padding:0;">
                 <div class="loan-header-row">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:13px; color:#374151;">
@@ -532,18 +544,43 @@ function loadLoanHistory(memberId) {
                     </div>
                 </div>
             </td></tr>`;
+            
             loan.loanDetails.forEach(d => {
+                const dueDateStr = new Date(d.dueDate).toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'});
+                
+                let rowStyle = '';
+                let overdueTag = '';
+                if (d.isOverdue) {
+                    rowStyle = 'background:#fff5f5;';
+                    overdueTag = `<div style="font-size:10px; color:#dc2626; margin-top:2px;">
+                        <i class="bi bi-exclamation-triangle-fill"></i> เกิน ${d.monthsLate} เดือน
+                        | ค่าปรับ ฿${d.penalty.toFixed(2)}
+                    </div>`;
+                }
+                
                 const statusContent = d.isPaid
                     ? `<span class="badge-paid">จ่ายแล้ว</span>
                        <button class="btn-cancel-pay" onclick="confirmCancelPay(${d.id})">
                            <i class="bi bi-x-circle"></i> ยกเลิก</button>`
-                    : `<button class="btn-pay" onclick="payMoney(${d.id})">จ่ายเงิน</button>`;
-                html += `<tr>
+                    : d.isOverdue
+                        ? `<button class="btn-pay" style="background:#fff0f0; border-color:#fca5a5; color:#dc2626;" onclick="payMoney(${d.id})">
+                               <i class="bi bi-exclamation-circle"></i> จ่ายเงิน
+                           </button>`
+                        : `<button class="btn-pay" onclick="payMoney(${d.id})">จ่ายเงิน</button>`;
+
+                html += `<tr style="${rowStyle}">
                     <td>${d.installment}</td>
-                    <td>${d.payment.toFixed(2)}</td>
+                    <td>
+                        <div>${d.payment.toFixed(2)}</div>
+                        ${d.isOverdue ? `<div style="font-size:10px;color:#dc2626;">+฿${d.penalty.toFixed(2)}</div>` : ''}
+                    </td>
                     <td>${d.principal.toFixed(2)}</td>
                     <td>${d.interest > 0 ? d.interest.toFixed(2) : '-'}</td>
                     <td>${d.balance.toFixed(2)}</td>
+                    <td>
+                        <div style="font-size:11px; color:#9ca3af;">${dueDateStr}</div>
+                        ${overdueTag}
+                    </td>
                     <td>${statusContent}</td>
                 </tr>`;
             });
@@ -686,5 +723,52 @@ function payMoney(id) {
             });
         }
     });
+}
+
+(async function loadOverdueBadge() {
+    try {
+        const res  = await fetch('/Loan/GetOverdueSummary');
+        const data = await res.json();
+        if (data.overdueCount > 0) {
+            document.getElementById('overdueCount').innerText = data.overdueCount;
+            document.getElementById('overdueBadge').style.display = 'inline';
+        }
+    } catch(e) {}
+})();
+
+async function exportExcel() {
+    Swal.fire({ title: 'กำลังเตรียมข้อมูล...', didOpen: () => Swal.showLoading() });
+    
+    try {
+        if (!window.XLSX) {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        const res  = await fetch('/Member/GetExportData');
+        const data = await res.json();
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+
+        const colWidths = Object.keys(data[0] || {}).map(k => ({
+            wch: Math.max(k.length, ...data.map(r => String(r[k] ?? '').length)) + 2
+        }));
+        ws['!cols'] = colWidths;
+
+        XLSX.utils.book_append_sheet(wb, ws, 'สมาชิก');
+        
+        const today = new Date().toLocaleDateString('th-TH').replace(/\//g, '-');
+        XLSX.writeFile(wb, `POOC_สมาชิก_${today}.xlsx`);
+        
+        Swal.fire('สำเร็จ', 'ดาวน์โหลด Excel เรียบร้อย', 'success');
+    } catch(e) {
+        Swal.fire('ผิดพลาด', 'Export ไม่สำเร็จ: ' + e.message, 'error');
+    }
 }
 </script>

@@ -284,4 +284,53 @@ public class MemberController : Controller
         public int Year { get; set; }
         public decimal Rate { get; set; }
     }
+    [HttpGet]
+    public IActionResult GetExportData()
+    {
+        var members = _context.Members.IgnoreQueryFilters().ToList();
+        
+        var result = members.Select(m => {
+            var savings = _context.Savings
+                .Where(s => s.MemberId == m.Id)
+                .Sum(s => (decimal?)s.Amount) ?? 0;
+
+            var loans = _context.Loans.IgnoreQueryFilters()
+                .Include(l => l.LoanDetails)
+                .Where(l => l.MemberId == m.Id)
+                .ToList();
+
+            var today = DateTime.Now.Date;
+            int overdueCount = 0;
+            double totalPenalty = 0;
+
+            foreach (var loan in loans)
+            {
+                var startDate = new DateTime(loan.CreatedDate.Year, loan.CreatedDate.Month, 1).AddMonths(1);
+                foreach (var d in loan.LoanDetails.Where(d => !d.IsPaid))
+                {
+                    var dueDate = startDate.AddMonths(d.Installment - 1);
+                    if (dueDate < today)
+                    {
+                        overdueCount++;
+                        var monthsLate = ((today.Year - dueDate.Year) * 12) + today.Month - dueDate.Month;
+                        if (monthsLate < 1) monthsLate = 1;
+                        totalPenalty += d.Payment * 0.015 * monthsLate;
+                    }
+                }
+            }
+
+            return new {
+                ชื่อ = m.FirstName,
+                นามสกุล = m.LastName,
+                อาชีพ = m.Role,
+                เบอร์โทร = m.Phone ?? "-",
+                ยอดเงินฝากคงเหลือ = savings,
+                จำนวนสัญญากู้ = loans.Count,
+                งวดเกินกำหนด = overdueCount,
+                ค่าปรับสะสม = Math.Round(totalPenalty, 2)
+            };
+        }).ToList();
+
+        return Json(result);
+    }
 }

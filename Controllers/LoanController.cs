@@ -362,4 +362,88 @@ public class LoanController : Controller
 
         return File(document.GeneratePdf(), "application/pdf", $"Contract_{loanId}.pdf");
     }
+    [HttpGet]
+    public IActionResult GetOverdueSummary()
+    {
+        var today = DateTime.Now.Date;
+        
+        var loans = _context.Loans
+            .Include(x => x.Member)
+            .Include(x => x.LoanDetails)
+            .ToList();
+
+        int overdueCount = 0;
+        double totalPenalty = 0;
+
+        foreach (var loan in loans)
+        {
+            var startDate = new DateTime(loan.CreatedDate.Year, loan.CreatedDate.Month, 1).AddMonths(1);
+            
+            foreach (var detail in loan.LoanDetails.Where(d => !d.IsPaid))
+            {
+                var dueDate = startDate.AddMonths(detail.Installment - 1);
+                if (dueDate < today)
+                {
+                    overdueCount++;
+                    var monthsLate = ((today.Year - dueDate.Year) * 12) + today.Month - dueDate.Month;
+                    if (monthsLate < 1) monthsLate = 1;
+                    totalPenalty += detail.Payment * 0.015 * monthsLate;
+                }
+            }
+        }
+
+        return Json(new { overdueCount, totalPenalty });
+    }
+    [HttpGet]
+    public IActionResult GetLoanHistoryWithOverdue(int memberId)
+    {
+        var today = DateTime.Now.Date;
+        
+        var loans = _context.Loans
+            .Where(x => x.MemberId == memberId)
+            .Include(x => x.LoanDetails)
+            .OrderByDescending(x => x.Id)
+            .ToList();
+
+        return Json(loans.Select(loan => {
+            var startDate = new DateTime(loan.CreatedDate.Year, loan.CreatedDate.Month, 1).AddMonths(1);
+            
+            return new {
+                loan.Id,
+                loan.MemberId,
+                loan.Amount,
+                loan.Rate,
+                loan.Months,
+                loan.CreatedDate,
+                LoanDetails = loan.LoanDetails.OrderBy(d => d.Installment).Select(d => {
+                    var dueDate = startDate.AddMonths(d.Installment - 1);
+                    bool isOverdue = !d.IsPaid && dueDate < today;
+                    int monthsLate = 0;
+                    double penalty = 0;
+                    
+                    if (isOverdue)
+                    {
+                        monthsLate = ((today.Year - dueDate.Year) * 12) + today.Month - dueDate.Month;
+                        if (monthsLate < 1) monthsLate = 1;
+                        penalty = Math.Round(d.Payment * 0.015 * monthsLate, 2);
+                    }
+                    
+                    return new {
+                        d.Id,
+                        d.Installment,
+                        d.Payment,
+                        d.Principal,
+                        d.Interest,
+                        d.Balance,
+                        d.IsPaid,
+                        d.PaidDate,
+                        DueDate = dueDate.ToString("yyyy-MM-dd"),
+                        IsOverdue = isOverdue,
+                        MonthsLate = monthsLate,
+                        Penalty = penalty
+                    };
+                })
+            };
+        }));
+    }
 }
