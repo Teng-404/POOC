@@ -58,6 +58,7 @@ Controllers/
  HomeController.cs
  LoanController.cs
  MemberController.cs
+ SettingsController.cs
 Data/ApplicationDbContext.cs
 Migrations/
  20260508025701_InitialCreate.cs
@@ -66,17 +67,20 @@ Migrations/
  20260511022318_AddSavingsInterest.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
+ AuditLog.cs
  ErrorViewModel.cs
  Loan.cs
  Member.cs
  Model.cs
  Savings.cs
+ SystemSetting.cs
 obj/Debug/net9.0/
  .NETCoreApp,Version=v9.0.AssemblyAttributes.cs
  POOC.AssemblyInfo.cs
  POOC.GlobalUsings.g.cs
  POOC.RazorAssemblyInfo.cs
 Program.cs
+Services/PasswordHashService.cs
 
 [metadataReferences]
 <DOTNET>/packs/Microsoft.AspNetCore.App.Ref/9.0.15/ref/net9.0/
@@ -466,27 +470,31 @@ Program.cs
 obj/Debug/net9.0/POOC.GeneratedMSBuildEditorConfig.editorconfig
 
 [additionalFiles]
+Views/Auth/
+ ChangePassword.cshtml
+ Index.cshtml
+Views/Home/
+ Dashboard.cshtml
+ Member.cshtml
+Views/Shared/
+ Error.cshtml
+ _Layout.cshtml
+ _ValidationScriptsPartial.cshtml
 Views/
- Auth/Index.cshtml
- Home/
-  Dashboard.cshtml
-  Member.cshtml
- Shared/
-  Error.cshtml
-  _Layout.cshtml
-  _ValidationScriptsPartial.cshtml
  _ViewImports.cshtml
  _ViewStart.cshtml
 
 [dynamicFiles]
+Views/Auth/
+ ChangePassword.cshtml
+ Index.cshtml
+Views/Home/
+ Dashboard.cshtml
+ Member.cshtml
+Views/Shared/
+ Error.cshtml
+ _Layout.cshtml
+ _ValidationScriptsPartial.cshtml
 Views/
- Auth/Index.cshtml
- Home/
-  Dashboard.cshtml
-  Member.cshtml
- Shared/
-  Error.cshtml
-  _Layout.cshtml
-  _ValidationScriptsPartial.cshtml
  _ViewImports.cshtml
  _ViewStart.cshtml

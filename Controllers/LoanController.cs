@@ -116,6 +116,7 @@ public class LoanController : Controller
         }).ToList();
 
         _context.LoanDetails.AddRange(details);
+        AddAuditLog("Create", "Loan", loan.Id, $"สร้างสัญญาเงินกู้ MemberId={model.MemberId} ยอด {model.Amount:N2} บาท");
         _context.SaveChanges();
 
         return Json(new { success = true });
@@ -155,14 +156,12 @@ public class LoanController : Controller
 
             if (loan != null)
             {
-                // ลบตารางลูก (งวดชำระ) ก่อนเพื่อป้องกัน Foreign Key Error
-                if (loan.LoanDetails != null)
-                {
-                    _context.LoanDetails.RemoveRange(loan.LoanDetails);
-                }
-                
-                // ลบตารางแม่ (สัญญา)
-                _context.Loans.Remove(loan);
+                // Soft delete เฉพาะสัญญา และเก็บงวดชำระไว้เป็นประวัติการเงินสำหรับตรวจสอบย้อนหลัง
+                loan.IsDeleted = true;
+                loan.DeletedDate = DateTime.Now;
+                loan.DeletedBy = GetCurrentUserId();
+                loan.Status = "Cancelled";
+                AddAuditLog("SoftDelete", "Loan", loan.Id, $"ลบสัญญาเงินกู้แบบ soft delete LoanId={loan.Id}");
                 _context.SaveChanges();
                 return Json(new { success = true });
             }
@@ -187,7 +186,9 @@ public class LoanController : Controller
         if (model == null || model.DetailId <= 0) 
             return Json(new { success = false, message = "ข้อมูลไม่ถูกต้อง" });
 
-        var detail = _context.LoanDetails.Find(model.DetailId);
+        var detail = _context.LoanDetails
+            .Include(x => x.Loan)
+            .FirstOrDefault(x => x.Id == model.DetailId);
         if (detail == null) 
             return Json(new { success = false, message = "ไม่พบข้อมูลงวดนี้" });
         
@@ -200,7 +201,8 @@ public class LoanController : Controller
 
         detail.IsPaid = true;
         detail.PaidDate = DateTime.Now;
-
+        
+        AddAuditLog("PayInstallment", "LoanDetail", detail.Id, $"ชำระงวดที่ {detail.Installment} LoanId={detail.LoanId}");
         _context.SaveChanges();
         return Json(new { success = true });
     }
@@ -208,7 +210,9 @@ public class LoanController : Controller
     [IgnoreAntiforgeryToken]
     public IActionResult CancelPayment([FromBody] PayRequest model)
     {
-        var detail = _context.LoanDetails.Find(model.DetailId);
+        var detail = _context.LoanDetails
+            .Include(x => x.Loan)
+            .FirstOrDefault(x => x.Id == model.DetailId);
         if (detail == null) return Json(new { success = false, message = "ไม่พบข้อมูล" });
 
         // --- เช็คลำดับ: ห้ามยกเลิกงวดก่อนหน้า ถ้ามึงวดหลังจ่ายไปแล้ว ---
@@ -221,6 +225,7 @@ public class LoanController : Controller
 
         detail.IsPaid = false;
         detail.PaidDate = null;
+        AddAuditLog("CancelPayment", "LoanDetail", detail.Id, $"ยกเลิกชำระงวดที่ {detail.Installment} LoanId={detail.LoanId}");
         _context.SaveChanges();
         return Json(new { success = true });
     }
@@ -373,6 +378,7 @@ public class LoanController : Controller
             .ToList();
 
         int overdueCount = 0;
+        var penaltyRate = (double)GetDecimalSetting("PenaltyRate", 1.5m) / 100;
         double totalPenalty = 0;
 
         foreach (var loan in loans)
@@ -387,7 +393,7 @@ public class LoanController : Controller
                     overdueCount++;
                     var monthsLate = ((today.Year - dueDate.Year) * 12) + today.Month - dueDate.Month;
                     if (monthsLate < 1) monthsLate = 1;
-                    totalPenalty += detail.Payment * 0.015 * monthsLate;
+                    totalPenalty += detail.Payment * penaltyRate * monthsLate;
                 }
             }
         }
@@ -425,7 +431,8 @@ public class LoanController : Controller
                     {
                         monthsLate = ((today.Year - dueDate.Year) * 12) + today.Month - dueDate.Month;
                         if (monthsLate < 1) monthsLate = 1;
-                        penalty = Math.Round(d.Payment * 0.015 * monthsLate, 2);
+                        var penaltyRate = (double)GetDecimalSetting("PenaltyRate", 1.5m) / 100;
+                        penalty = Math.Round(d.Payment * penaltyRate * monthsLate, 2);
                     }
                     
                     return new {
@@ -445,5 +452,22 @@ public class LoanController : Controller
                 })
             };
         }));
+    }
+    private decimal GetDecimalSetting(string key, decimal defaultValue)
+    {
+        var value = _context.SystemSettings.FirstOrDefault(x => x.Key == key)?.Value;
+        return decimal.TryParse(value, out var parsed) ? parsed : defaultValue;
+    }
+
+    private void AddAuditLog(string action, string entityName, int? entityId, string detail)
+    {
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId = GetCurrentUserId(),
+            Action = action,
+            EntityName = entityName,
+            EntityId = entityId,
+            Detail = detail
+        });
     }
 }

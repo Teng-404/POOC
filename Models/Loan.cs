@@ -13,6 +13,11 @@ namespace POOC.Models
         public int Months { get; set; }
         public DateTime CreatedDate { get; set; } = DateTime.Now;
         public string? OwnerId { get; set; }
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedDate { get; set; }
+        public string? DeletedBy { get; set; }
+        public string Status { get; set; } = "Active";
+        public DateTime? ClosedDate { get; set; }
         public List<LoanDetail> LoanDetails { get; set; } = new();
     }
     public class LoanDetail
