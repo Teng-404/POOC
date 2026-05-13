@@ -59,7 +59,9 @@ Controllers/
  LoanController.cs
  MemberController.cs
  SettingsController.cs
-Data/ApplicationDbContext.cs
+Data/
+ ApplicationDbContext.cs
+ DatabaseInitializer.cs
 Migrations/
  20260508025701_InitialCreate.cs
  20260508025701_InitialCreate.Designer.cs

@@ -80,14 +80,13 @@ public class MemberController : Controller
             if (member == null) return Json(new { success = false, message = "ไม่พบข้อมูลสมาชิก" });
 
             // 2. Soft delete ข้อมูลที่เกี่ยวข้องทั้งหมด เพื่อเก็บประวัติการเงินไว้ตรวจสอบย้อนหลัง
-            var userId = GetCurrentUserId();
+            foreach (var loan in member.Loans)
             {
                 loan.IsDeleted = true;
                 loan.DeletedDate = DateTime.Now;
                 loan.DeletedBy = userId;
                 loan.Status = "Cancelled";
             }
-            _context.Loans.RemoveRange(member.Loans); // ลบสัญญา
             
             // 3. Soft delete ตัวสมาชิก
             member.IsDeleted = true;
