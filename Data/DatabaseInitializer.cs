@@ -8,6 +8,7 @@ namespace POOC.Data
         private static readonly HashSet<string> AllowedColumnDefinitions = new(StringComparer.OrdinalIgnoreCase)
         {
             "INTEGER NOT NULL DEFAULT 0",
+            "REAL NOT NULL DEFAULT 0",
             "TEXT NULL",
             "TEXT NOT NULL DEFAULT 'Active'"
         };

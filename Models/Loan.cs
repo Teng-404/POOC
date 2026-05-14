@@ -18,6 +18,11 @@ namespace POOC.Models
         public string? DeletedBy { get; set; }
         public string Status { get; set; } = "Active";
         public DateTime? ClosedDate { get; set; }
+        public string? GuarantorName { get; set; }
+        public string? GuarantorPhone { get; set; }
+        public string? GuarantorAddress { get; set; }
+        public DateTime? ApprovedDate { get; set; }
+        public string? ApprovedBy { get; set; }
         public List<LoanDetail> LoanDetails { get; set; } = new();
     }
     public class LoanDetail
@@ -30,6 +35,7 @@ namespace POOC.Models
         public double Interest { get; set; }
         public double Balance { get; set; }
         public bool IsPaid { get; set; } = false; 
+        public double PaidAmount { get; set; } = 0;
         public DateTime? PaidDate { get; set; }    
         
         [JsonIgnore]
@@ -41,6 +47,9 @@ namespace POOC.Models
         public double Amount { get; set; }
         public double Rate { get; set; }
         public int Months { get; set; }
+        public string? GuarantorName { get; set; }
+        public string? GuarantorPhone { get; set; }
+        public string? GuarantorAddress { get; set; }
     }
     public class LoanSchedule
     {
@@ -57,5 +66,10 @@ namespace POOC.Models
     public class PayRequest
     {
         public int DetailId { get; set; }
+        public double? Amount { get; set; }
+    }
+    public class LoanActionRequest
+    {
+        public int LoanId { get; set; }
     }
 }

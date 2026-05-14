@@ -58,8 +58,14 @@
 
     .loan-header-row { background: #f9fafb; border-radius: 8px; padding: 10px 14px; margin-bottom: 2px; font-size: 13px; }
     .badge-paid { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #dcfce7; color: #166534; }
+    .badge-partial { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #fef3c7; color: #92400e; }
+    .badge-pending { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #eef2ff; color: #3730a3; }
+    .badge-closed { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #e5e7eb; color: #374151; }
     .btn-pay { font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 0.5px solid #bfdbfe; background: #eff6ff; color: #185FA5; cursor: pointer; }
     .btn-pay:hover { background: #dbeafe; }
+    .btn-pay:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-approve { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 0.5px solid #99f6e4; background: #f0fdf4; color: #0F6E56; cursor: pointer; }
+    .btn-close-loan { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 0.5px solid #fde68a; background: #fffbeb; color: #b45309; cursor: pointer; }
     .btn-cancel-pay { font-size: 11px; padding: 2px 6px; border-radius: 6px; border: none; background: transparent; color: #dc2626; cursor: pointer; }
 
     .balance-display { background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 1rem; }
@@ -284,6 +290,18 @@
                                 <i class="bi bi-calculator"></i> คำนวณ
                             </button>
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label-sm">ชื่อผู้ค้ำประกัน</label>
+                            <input type="text" name="guarantorName" class="form-control form-control-sm" placeholder="ชื่อ-นามสกุล" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label-sm">เบอร์ผู้ค้ำประกัน</label>
+                            <input type="text" name="guarantorPhone" class="form-control form-control-sm" placeholder="0XX-XXX-XXXX" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label-sm">ที่อยู่ผู้ค้ำประกัน</label>
+                            <input type="text" name="guarantorAddress" class="form-control form-control-sm" placeholder="ที่อยู่โดยย่อ" />
+                        </div>
                     </div>
                 </form>
 
@@ -299,7 +317,7 @@
                             </tr>
                         </thead>
                         <tbody id="loanTableBody">
-                            <tr><td colspan="6" class="empty-row" style="padding:20px;">กรอกข้อมูลแล้วกดคำนวณ</td></tr>
+                            <tr><td colspan="7" class="empty-row" style="padding:20px;">กรอกข้อมูลแล้วกดคำนวณ</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -471,7 +489,7 @@ function openLoan(id, firstName, lastName) {
     document.getElementById('loanMemberId').value = id;
     document.getElementById('loanName').innerText = firstName + ' ' + lastName;
     document.getElementById('loanTableBody').innerHTML =
-        '<tr><td colspan="6" class="empty-row" style="padding:20px;">กรอกข้อมูลแล้วกดคำนวณ</td></tr>';
+        '<tr><td colspan="7" class="empty-row" style="padding:20px;">กรอกข้อมูลแล้วกดคำนวณ</td></tr>';
     loadLoanHistory(id);
 }
 
@@ -480,7 +498,7 @@ function loadSchedule(e) {
     const memberId = parseInt(document.getElementById('loanMemberId').value);
     const { amount, rate, months } = e.target;
     document.getElementById('loanTableBody').innerHTML =
-        '<tr><td colspan="6" class="empty-row" style="padding:16px;">กำลังคำนวณ...</td></tr>';
+        '<tr><td colspan="7" class="empty-row" style="padding:16px;">กำลังคำนวณ...</td></tr>';
     fetch(`/Loan/GetLoanSchedule?memberId=${memberId}&amount=${amount.value}&rate=${rate.value}&months=${months.value}`)
     .then(res => res.json())
     .then(data => {
@@ -491,6 +509,7 @@ function loadSchedule(e) {
             <td>${x.interest.toFixed(2)}</td>
             <td>${x.balance.toFixed(2)}</td>
             <td style="color:#9ca3af;">-</td>
+            <td><span class="badge-pending">ตัวอย่าง</span></td>
         </tr>`).join('');
     });
 }
@@ -500,14 +519,17 @@ function saveLoan() {
     const amount   = document.querySelector("input[name='amount']").value;
     const rate     = document.querySelector("input[name='rate']").value;
     const months   = document.querySelector("input[name='months']").value;
+    const guarantorName    = document.querySelector("input[name='guarantorName']").value;
+    const guarantorPhone   = document.querySelector("input[name='guarantorPhone']").value;
+    const guarantorAddress = document.querySelector("input[name='guarantorAddress']").value;
     Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
     fetch('/Loan/Create', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId, amount, rate, months })
+        body: JSON.stringify({ memberId, amount, rate, months, guarantorName, guarantorPhone, guarantorAddress })
     })
     .then(res => res.json())
     .then(res => {
-        if (res.success) { Swal.fire('สำเร็จ', 'บันทึกสัญญาแล้ว', 'success'); loadLoanHistory(memberId); }
+        if (res.success) { Swal.fire('สำเร็จ', 'บันทึกคำขอแล้ว กรุณาอนุมัติเงินกู้ก่อนรับชำระ', 'success'); loadLoanHistory(memberId); }
         else Swal.fire('ผิดพลาด', res.message, 'error');
     });
 }
@@ -523,6 +545,18 @@ function loadLoanHistory(memberId) {
         }
         let html = '';
         data.forEach(loan => {
+            const statusClass = loan.status === 'Pending' ? 'badge-pending'
+                : loan.status === 'PartialPaid' ? 'badge-partial'
+                : loan.status === 'Closed' ? 'badge-closed'
+                : 'badge-paid';
+            const guarantor = loan.guarantorName
+                ? `&nbsp;|&nbsp; ผู้ค้ำ: <strong>${loan.guarantorName}</strong>`
+                : '';
+            const loanActions = loan.status === 'Pending'
+                ? `<button class="btn-approve" onclick="approveLoan(${loan.id})"><i class="bi bi-check2-circle"></i> อนุมัติ</button>`
+                : loan.status !== 'Closed'
+                    ? `<button class="btn-close-loan" onclick="closeLoanEarly(${loan.id})"><i class="bi bi-door-closed"></i> ปิดบัญชีก่อนกำหนด</button>`
+                    : '';
             html += `<tr><td colspan="7" style="padding:0;">
                 <div class="loan-header-row">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -530,8 +564,12 @@ function loadLoanHistory(memberId) {
                             <strong>฿${loan.amount.toLocaleString('th-TH')}</strong>
                             &nbsp;|&nbsp; ดอกเบี้ย <strong>${loan.rate}%</strong>
                             &nbsp;|&nbsp; <strong>${loan.months}</strong> งวด
+                            &nbsp;|&nbsp; <span class="${statusClass}">${loan.statusText}</span>
+                            &nbsp;|&nbsp; ชำระแล้ว <strong>฿${loan.paidAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</strong>
+                            ${guarantor}
                         </span>
                         <div style="display:flex; gap:6px;">
+                            ${loanActions}
                             <a href="/Loan/DownloadContract?loanId=${loan.id}" target="_blank"
                                style="font-size:12px; padding:4px 10px; border-radius:6px; border:0.5px solid #bfdbfe; background:#eff6ff; color:#185FA5; text-decoration:none;">
                                 <i class="bi bi-file-pdf"></i> พิมพ์สัญญา
@@ -557,15 +595,23 @@ function loadLoanHistory(memberId) {
                     </div>`;
                 }
                 
+                const paidInfo = d.paidAmount > 0 && !d.isPaid
+                    ? `<div style="font-size:10px; color:#92400e; margin-top:2px;">จ่ายแล้ว ฿${d.paidAmount.toFixed(2)} / เหลือ ฿${d.remainingPayment.toFixed(2)}</div>`
+                    : '';
+                const paymentDisabled = (loan.status !== 'Active' && loan.status !== 'PartialPaid') ? 'disabled title="ต้องอนุมัติเงินกู้ก่อน"' : '';
                 const statusContent = d.isPaid
                     ? `<span class="badge-paid">จ่ายแล้ว</span>
                        <button class="btn-cancel-pay" onclick="confirmCancelPay(${d.id})">
                            <i class="bi bi-x-circle"></i> ยกเลิก</button>`
+                    : d.paidAmount > 0
+                        ? `<span class="badge-partial">ชำระบางส่วน</span>
+                           ${paidInfo}
+                           <button class="btn-pay" ${paymentDisabled} onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)})">ชำระเพิ่ม</button>`
                     : d.isOverdue
-                        ? `<button class="btn-pay" style="background:#fff0f0; border-color:#fca5a5; color:#dc2626;" onclick="payMoney(${d.id})">
+                        ? `<button class="btn-pay" ${paymentDisabled} style="background:#fff0f0; border-color:#fca5a5; color:#dc2626;" onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)})">
                                <i class="bi bi-exclamation-circle"></i> จ่ายเงิน
                            </button>`
-                        : `<button class="btn-pay" onclick="payMoney(${d.id})">จ่ายเงิน</button>`;
+                        : `<button class="btn-pay" ${paymentDisabled} onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)})">จ่ายเงิน</button>`;
 
                 html += `<tr style="${rowStyle}">
                     <td>${d.installment}</td>
@@ -703,17 +749,64 @@ async function confirmCancelPay(id) {
     } else if (pw !== undefined) Swal.fire('รหัสผ่านไม่ถูกต้อง', '', 'error');
 }
 
-function payMoney(id) {
+function approveLoan(id) {
     Swal.fire({
-        title: 'ยืนยันการชำระเงิน?', text: 'บันทึกการชำระเงินงวดนี้',
+        title: 'อนุมัติเงินกู้?', text: 'หลังอนุมัติแล้วจะสามารถรับชำระเงินได้',
         icon: 'question', showCancelButton: true,
-        confirmButtonColor: '#185FA5',
-        confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก'
+        confirmButtonColor: '#0F6E56', confirmButtonText: 'อนุมัติ', cancelButtonText: 'ยกเลิก'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        fetch('/Loan/Approve', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ loanId: id })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) { Swal.fire('สำเร็จ', 'อนุมัติเงินกู้แล้ว', 'success'); loadLoanHistory(document.getElementById('loanMemberId').value); }
+            else Swal.fire('ผิดพลาด', res.message || 'ไม่สามารถอนุมัติได้', 'error');
+        });
+    });
+}
+
+function closeLoanEarly(id) {
+    Swal.fire({
+        title: 'ปิดบัญชีก่อนกำหนด?',
+        text: 'ระบบจะบันทึกงวดที่เหลือทั้งหมดเป็นชำระแล้วและปิดสัญญา',
+        icon: 'warning', showCancelButton: true,
+        confirmButtonColor: '#b45309', confirmButtonText: 'ปิดบัญชี', cancelButtonText: 'ยกเลิก'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        fetch('/Loan/CloseEarly', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ loanId: id })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) { Swal.fire('สำเร็จ', 'ปิดบัญชีเงินกู้แล้ว', 'success'); loadLoanHistory(document.getElementById('loanMemberId').value); }
+            else Swal.fire('ผิดพลาด', res.message || 'ไม่สามารถปิดบัญชีได้', 'error');
+        });
+    });
+}
+
+function payMoney(id, remainingPayment) {
+    Swal.fire({
+        title: 'บันทึกการชำระเงิน',
+        text: `ยอดคงเหลืองวดนี้ ฿${Number(remainingPayment).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
+        icon: 'question', input: 'number',
+        inputValue: Number(remainingPayment).toFixed(2),
+        inputAttributes: { min: 0.01, max: remainingPayment, step: 0.01 },
+        showCancelButton: true, confirmButtonColor: '#185FA5',
+        confirmButtonText: 'บันทึกชำระ', cancelButtonText: 'ยกเลิก',
+        inputValidator: value => {
+            const amount = parseFloat(value);
+            if (isNaN(amount) || amount <= 0) return 'กรุณาระบุยอดชำระให้ถูกต้อง';
+            if (amount > Number(remainingPayment) + 0.01) return 'ยอดชำระเกินยอดคงเหลืองวดนี้';
+        }
     }).then(result => {
         if (result.isConfirmed) {
             fetch('/Loan/PayInstallment', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ detailId: id })
+                body: JSON.stringify({ detailId: id, amount: parseFloat(result.value) })
             })
             .then(res => res.json())
             .then(res => {

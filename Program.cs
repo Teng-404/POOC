@@ -93,6 +93,13 @@ using (var scope = app.Services.CreateScope())
     DatabaseInitializer.EnsureColumn(context, "Loans", "DeletedBy", "TEXT NULL");
     DatabaseInitializer.EnsureColumn(context, "Loans", "Status", "TEXT NOT NULL DEFAULT 'Active'");
     DatabaseInitializer.EnsureColumn(context, "Loans", "ClosedDate", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "GuarantorName", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "GuarantorPhone", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "GuarantorAddress", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "ApprovedDate", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "Loans", "ApprovedBy", "TEXT NULL");
+    DatabaseInitializer.EnsureColumn(context, "LoanDetails", "PaidAmount", "REAL NOT NULL DEFAULT 0");
+    context.Database.ExecuteSqlRaw("UPDATE LoanDetails SET PaidAmount = Payment WHERE IsPaid = 1 AND PaidAmount = 0");
 
     if (!context.SystemSettings.Any(x => x.Key == "PenaltyRate"))
     {

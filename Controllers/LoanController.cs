@@ -67,6 +67,54 @@ public class LoanController : Controller
     }
     private string GetCurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
+    private static double GetEffectivePaidAmount(LoanDetail detail) =>
+        detail.IsPaid && detail.PaidAmount <= 0 ? detail.Payment : detail.PaidAmount;
+
+    private static double GetLoanPaidAmount(Loan loan) => loan.LoanDetails.Sum(GetEffectivePaidAmount);
+
+    private static double GetLoanTotalDue(Loan loan) => loan.LoanDetails.Sum(x => x.Payment);
+
+    private static double GetRemainingPayment(LoanDetail detail) => Math.Max(0, detail.Payment - GetEffectivePaidAmount(detail));
+
+    private static string GetDisplayStatus(Loan loan)
+    {
+        if (loan.Status == "Cancelled" || loan.Status == "Rejected" || loan.Status == "Pending" || loan.Status == "Closed")
+            return loan.Status;
+
+        var totalDue = GetLoanTotalDue(loan);
+        var paidAmount = GetLoanPaidAmount(loan);
+
+        if (totalDue > 0 && paidAmount >= totalDue - 0.01)
+            return "Closed";
+
+        if (paidAmount > 0)
+            return "PartialPaid";
+
+        return "Active";
+    }
+
+    private static string GetStatusText(string status) => status switch
+    {
+        "Pending" => "รออนุมัติ",
+        "Active" => "อนุมัติแล้ว",
+        "PartialPaid" => "ชำระบางส่วน",
+        "Closed" => "ปิดบัญชี",
+        "Cancelled" => "ยกเลิก",
+        "Rejected" => "ไม่อนุมัติ",
+        _ => status
+    };
+
+    private void RefreshLoanStatus(Loan loan)
+    {
+        if (loan.Status == "Cancelled" || loan.Status == "Rejected" || loan.Status == "Pending")
+            return;
+
+        var totalDue = GetLoanTotalDue(loan);
+        var paidAmount = GetLoanPaidAmount(loan);
+        loan.Status = paidAmount >= totalDue - 0.01 ? "Closed" : "Active";
+        loan.ClosedDate = loan.Status == "Closed" ? DateTime.Now : null;
+    }
+
     [HttpGet]
     public IActionResult GetLoanSchedule(int memberId, double amount, double rate, int months)
     {
@@ -97,7 +145,11 @@ public class LoanController : Controller
             Amount = model.Amount,
             Rate = model.Rate,
             Months = model.Months,
-            OwnerId = userId
+            OwnerId = userId,
+            Status = "Pending",
+            GuarantorName = model.GuarantorName,
+            GuarantorPhone = model.GuarantorPhone,
+            GuarantorAddress = model.GuarantorAddress
         };
         Console.WriteLine("SAVE => MemberId: " + model.MemberId);
         _context.Loans.Add(loan);
@@ -116,7 +168,65 @@ public class LoanController : Controller
         }).ToList();
 
         _context.LoanDetails.AddRange(details);
-        AddAuditLog("Create", "Loan", loan.Id, $"สร้างสัญญาเงินกู้ MemberId={model.MemberId} ยอด {model.Amount:N2} บาท");
+        AddAuditLog("Create", "Loan", loan.Id, $"สร้างคำขอเงินกู้ MemberId={model.MemberId} ยอด {model.Amount:N2} บาท รออนุมัติ");
+        _context.SaveChanges();
+
+        return Json(new { success = true });
+    }
+
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public IActionResult Approve([FromBody] LoanActionRequest model)
+    {
+        if (model == null || model.LoanId <= 0)
+            return Json(new { success = false, message = "ข้อมูลไม่ถูกต้อง" });
+
+        var loan = _context.Loans.FirstOrDefault(x => x.Id == model.LoanId);
+        if (loan == null)
+            return Json(new { success = false, message = "ไม่พบสัญญาเงินกู้" });
+
+        if (loan.Status == "Cancelled" || loan.Status == "Closed")
+            return Json(new { success = false, message = "สถานะสัญญานี้ไม่สามารถอนุมัติได้" });
+
+        loan.Status = "Active";
+        loan.ApprovedDate = DateTime.Now;
+        loan.ApprovedBy = GetCurrentUserId();
+        AddAuditLog("Approve", "Loan", loan.Id, $"อนุมัติเงินกู้ LoanId={loan.Id}");
+        _context.SaveChanges();
+
+        return Json(new { success = true });
+    }
+
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public IActionResult CloseEarly([FromBody] LoanActionRequest model)
+    {
+        if (model == null || model.LoanId <= 0)
+            return Json(new { success = false, message = "ข้อมูลไม่ถูกต้อง" });
+
+        var loan = _context.Loans
+            .Include(x => x.LoanDetails)
+            .FirstOrDefault(x => x.Id == model.LoanId);
+
+        if (loan == null)
+            return Json(new { success = false, message = "ไม่พบสัญญาเงินกู้" });
+
+        if (loan.Status == "Pending")
+            return Json(new { success = false, message = "กรุณาอนุมัติเงินกู้ก่อนปิดบัญชี" });
+
+        if (loan.Status == "Closed")
+            return Json(new { success = false, message = "สัญญานี้ปิดบัญชีแล้ว" });
+
+        foreach (var detail in loan.LoanDetails.Where(x => !x.IsPaid))
+        {
+            detail.PaidAmount = detail.Payment;
+            detail.IsPaid = true;
+            detail.PaidDate = DateTime.Now;
+        }
+
+        loan.Status = "Closed";
+        loan.ClosedDate = DateTime.Now;
+        AddAuditLog("CloseEarly", "Loan", loan.Id, $"ปิดบัญชีเงินกู้ก่อนกำหนด LoanId={loan.Id}");
         _context.SaveChanges();
 
         return Json(new { success = true });
@@ -192,6 +302,9 @@ public class LoanController : Controller
         if (detail == null) 
             return Json(new { success = false, message = "ไม่พบข้อมูลงวดนี้" });
         
+        if (detail.Loan == null || detail.Loan.Status != "Active")
+            return Json(new { success = false, message = "สัญญาต้องได้รับอนุมัติก่อนจึงจะชำระเงินได้" });
+        
         var previousUnpaid = _context.LoanDetails
         .Where(x => x.LoanId == detail.LoanId && x.Installment < detail.Installment && !x.IsPaid)
         .Any();
@@ -199,10 +312,20 @@ public class LoanController : Controller
         if (previousUnpaid) 
         return Json(new { success = false, message = "กรุณาชำระงวดก่อนหน้าให้ครบถ้วนก่อน" });
 
-        detail.IsPaid = true;
+        var payAmount = model.Amount ?? GetRemainingPayment(detail);
+        if (payAmount <= 0)
+            return Json(new { success = false, message = "จำนวนเงินชำระต้องมากกว่า 0" });
+
+        var remainingPayment = GetRemainingPayment(detail);
+        if (payAmount > remainingPayment + 0.01)
+            return Json(new { success = false, message = $"ยอดชำระเกินยอดคงเหลืองวดนี้ ({remainingPayment:N2} บาท)" });
+
+        detail.PaidAmount = Math.Round(detail.PaidAmount + payAmount, 2);
+        detail.IsPaid = GetRemainingPayment(detail) <= 0.01;
         detail.PaidDate = DateTime.Now;
+        RefreshLoanStatus(detail.Loan);
         
-        AddAuditLog("PayInstallment", "LoanDetail", detail.Id, $"ชำระงวดที่ {detail.Installment} LoanId={detail.LoanId}");
+        AddAuditLog("PayInstallment", "LoanDetail", detail.Id, $"ชำระงวดที่ {detail.Installment} LoanId={detail.LoanId} จำนวน {payAmount:N2} บาท");
         _context.SaveChanges();
         return Json(new { success = true });
     }
@@ -224,7 +347,14 @@ public class LoanController : Controller
             return Json(new { success = false, message = "ไม่สามารถยกเลิกได้ เนื่องจากมีการชำระงวดถัดไปแล้ว" });
 
         detail.IsPaid = false;
+        detail.PaidAmount = 0;
         detail.PaidDate = null;
+        if (detail.Loan != null)
+        {
+            detail.Loan.Status = detail.Loan.ApprovedDate.HasValue ? "Active" : detail.Loan.Status;
+            detail.Loan.ClosedDate = null;
+            RefreshLoanStatus(detail.Loan);
+        }
         AddAuditLog("CancelPayment", "LoanDetail", detail.Id, $"ยกเลิกชำระงวดที่ {detail.Installment} LoanId={detail.LoanId}");
         _context.SaveChanges();
         return Json(new { success = true });
@@ -245,6 +375,13 @@ public class LoanController : Controller
             x.Amount,
             x.Rate,
             x.Months,
+            Status = GetDisplayStatus(x),
+            StatusText = GetStatusText(GetDisplayStatus(x)),
+            x.GuarantorName,
+            x.GuarantorPhone,
+            x.GuarantorAddress,
+            PaidAmount = GetLoanPaidAmount(x),
+            TotalDue = GetLoanTotalDue(x),
             LoanDetails = x.LoanDetails.OrderBy(d => d.Installment).Select(d => new
             {
                 d.Id,
@@ -253,6 +390,8 @@ public class LoanController : Controller
                 d.Principal,
                 d.Interest,
                 d.Balance,
+                PaidAmount = GetEffectivePaidAmount(d),
+                RemainingPayment = GetRemainingPayment(d),
                 d.IsPaid,
                 d.PaidDate
             })
@@ -303,6 +442,7 @@ public class LoanController : Controller
                         c.Item().Text($"ข้อ 1. ผู้กู้ได้กู้ยืมเงินจากผู้ให้กู้เป็นจำนวนเงิน {loan.Amount:N2} บาท");
                         c.Item().Text($"ข้อ 2. ผู้กู้ตกลงยินยอมเสียดอกเบี้ยให้แก่ผู้ให้กู้ในอัตราร้อยละ {loan.Rate}% ต่อปี");
                         c.Item().Text($"ข้อ 3. ผู้กู้ตกลงจะชำระคืนเงินต้นพร้อมดอกเบี้ยรวมทั้งสิ้น {loan.Months} งวด ตามตารางแนบท้ายสัญญานี้");
+                        c.Item().Text($"ข้อ 4. ผู้ค้ำประกัน: {(string.IsNullOrWhiteSpace(loan.GuarantorName) ? "-" : loan.GuarantorName)} โทร. {(string.IsNullOrWhiteSpace(loan.GuarantorPhone) ? "-" : loan.GuarantorPhone)}");
                     });
 
                     // 3. ตารางงวดชำระ
@@ -357,6 +497,13 @@ public class LoanController : Controller
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().AlignCenter().Text("ลงชื่อ......................................................");
+                            c.Item().PaddingTop(2).AlignCenter().Text($"( {(string.IsNullOrWhiteSpace(loan.GuarantorName) ? "......................................................" : loan.GuarantorName)} )");
+                            c.Item().AlignCenter().Text("ผู้ค้ำประกัน");
+                        });
+
+                        row.RelativeItem().Column(c =>
+                        {
+                            c.Item().AlignCenter().Text("ลงชื่อ......................................................");
                             c.Item().PaddingTop(2).AlignCenter().Text("( ...................................................... )");
                             c.Item().AlignCenter().Text("ผู้ให้กู้ / พยาน");
                         });
@@ -375,6 +522,7 @@ public class LoanController : Controller
         var loans = _context.Loans
             .Include(x => x.Member)
             .Include(x => x.LoanDetails)
+            .Where(x => x.Status != "Pending" && x.Status != "Cancelled" && x.Status != "Closed")
             .ToList();
 
         int overdueCount = 0;
@@ -421,9 +569,18 @@ public class LoanController : Controller
                 loan.Rate,
                 loan.Months,
                 loan.CreatedDate,
+                Status = GetDisplayStatus(loan),
+                StatusText = GetStatusText(GetDisplayStatus(loan)),
+                loan.GuarantorName,
+                loan.GuarantorPhone,
+                loan.GuarantorAddress,
+                loan.ApprovedDate,
+                loan.ClosedDate,
+                PaidAmount = GetLoanPaidAmount(loan),
+                TotalDue = GetLoanTotalDue(loan),
                 LoanDetails = loan.LoanDetails.OrderBy(d => d.Installment).Select(d => {
                     var dueDate = startDate.AddMonths(d.Installment - 1);
-                    bool isOverdue = !d.IsPaid && dueDate < today;
+                    bool isOverdue = loan.Status != "Pending" && loan.Status != "Closed" && !d.IsPaid && dueDate < today;
                     int monthsLate = 0;
                     double penalty = 0;
                     
@@ -442,6 +599,8 @@ public class LoanController : Controller
                         d.Principal,
                         d.Interest,
                         d.Balance,
+                        PaidAmount = GetEffectivePaidAmount(d),
+                        RemainingPayment = GetRemainingPayment(d),
                         d.IsPaid,
                         d.PaidDate,
                         DueDate = dueDate.ToString("yyyy-MM-dd"),
