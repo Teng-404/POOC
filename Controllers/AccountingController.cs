@@ -304,14 +304,17 @@ public class AccountingController : Controller
 
                         foreach (var row in report.LedgerRows.Take(80))
                         {
-                            AddBodyCell(table, row.Date.ToString("dd/MM/yyyy"));
-                            AddBodyCell(table, row.DocumentNo);
-                            AddBodyCell(table, row.Type);
-                            AddBodyCell(table, row.MemberName);
-                            AddBodyCell(table, row.Description);
-                            AddBodyCell(table, row.Debit.ToString("N2"));
-                            AddBodyCell(table, row.Credit.ToString("N2"));
+                            table.Cell().Element(ContentStyle).Text(row.Date.ToString("dd/MM/yyyy"));
+                            table.Cell().Element(ContentStyle).Text(row.DocumentNo);
+                            table.Cell().Element(ContentStyle).Text(row.Type);
+                            table.Cell().Element(ContentStyle).Text(row.MemberName);
+                            table.Cell().Element(ContentStyle).Text(row.Description);
+                            table.Cell().Element(ContentStyle).Text(row.Debit.ToString("N2"));
+                            table.Cell().Element(ContentStyle).Text(row.Credit.ToString("N2"));
                         }
+
+                        static IContainer ContentStyle(IContainer container) =>
+                            container.BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(3);
                     });
                 });
             });
