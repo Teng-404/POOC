@@ -54,6 +54,7 @@ TemporaryDependencyNodeTargetIdentifier=net9.0
 
 [sourceFiles]
 Controllers/
+ AccountingController.cs
  AuthController.cs
  HomeController.cs
  LoanController.cs
@@ -69,6 +70,7 @@ Migrations/
  20260511022318_AddSavingsInterest.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
+ AccountingReport.cs
  AuditLog.cs
  ErrorViewModel.cs
  Loan.cs
@@ -472,31 +474,33 @@ Services/PasswordHashService.cs
 obj/Debug/net9.0/POOC.GeneratedMSBuildEditorConfig.editorconfig
 
 [additionalFiles]
-Views/Auth/
- ChangePassword.cshtml
- Index.cshtml
-Views/Home/
- Dashboard.cshtml
- Member.cshtml
-Views/Shared/
- Error.cshtml
- _Layout.cshtml
- _ValidationScriptsPartial.cshtml
 Views/
+ Accounting/Index.cshtml
+ Auth/
+  ChangePassword.cshtml
+  Index.cshtml
+ Home/
+  Dashboard.cshtml
+  Member.cshtml
+ Shared/
+  Error.cshtml
+  _Layout.cshtml
+  _ValidationScriptsPartial.cshtml
  _ViewImports.cshtml
  _ViewStart.cshtml
 
 [dynamicFiles]
-Views/Auth/
- ChangePassword.cshtml
- Index.cshtml
-Views/Home/
- Dashboard.cshtml
- Member.cshtml
-Views/Shared/
- Error.cshtml
- _Layout.cshtml
- _ValidationScriptsPartial.cshtml
 Views/
+ Accounting/Index.cshtml
+ Auth/
+  ChangePassword.cshtml
+  Index.cshtml
+ Home/
+  Dashboard.cshtml
+  Member.cshtml
+ Shared/
+  Error.cshtml
+  _Layout.cshtml
+  _ValidationScriptsPartial.cshtml
  _ViewImports.cshtml
  _ViewStart.cshtml

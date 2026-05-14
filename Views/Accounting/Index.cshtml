@@ -1,0 +1,181 @@
+@model POOC.Models.AccountingIndexViewModel
+@{
+    ViewData["Title"] = "งานบัญชีและเอกสาร";
+}
+
+<style>
+    .accounting-page { color: #1f2937; }
+    .accounting-hero { background: linear-gradient(135deg, #185FA5, #0F6E56); border-radius: 24px; padding: 28px; color: white; margin-bottom: 24px; box-shadow: 0 16px 40px rgba(15, 110, 86, .18); }
+    .accounting-hero h1 { font-size: 30px; margin: 0 0 8px; font-weight: 800; }
+    .accounting-hero p { margin: 0; opacity: .88; }
+    .filter-card, .acc-card { border: 1px solid #e5e7eb; border-radius: 18px; background: #fff; box-shadow: 0 12px 30px rgba(15, 23, 42, .06); }
+    .filter-card { padding: 18px; margin-bottom: 20px; }
+    .filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: end; }
+    .filter-grid label { font-size: 13px; color: #6b7280; font-weight: 700; margin-bottom: 6px; }
+    .filter-grid input { border: 1px solid #d1d5db; border-radius: 12px; padding: 10px 12px; width: 100%; }
+    .btn-main { border: 0; border-radius: 12px; padding: 11px 18px; background: #185FA5; color: white; font-weight: 700; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; gap: 6px; }
+    .btn-soft { border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px 14px; background: #f8fafc; color: #334155; font-weight: 700; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; gap: 6px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .summary-card { border-radius: 18px; padding: 20px; background: #fff; border: 1px solid #e5e7eb; box-shadow: 0 12px 30px rgba(15, 23, 42, .06); }
+    .summary-label { font-size: 13px; color: #6b7280; font-weight: 700; }
+    .summary-value { font-size: 25px; font-weight: 800; margin-top: 8px; }
+    .positive { color: #059669; }
+    .negative { color: #dc2626; }
+    .primary { color: #185FA5; }
+    .warning { color: #b45309; }
+    .section-grid { display: grid; grid-template-columns: 1.35fr .85fr; gap: 20px; margin-bottom: 24px; }
+    .acc-card { padding: 20px; min-width: 0; }
+    .card-title-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .card-title-row h2 { margin: 0; font-size: 19px; font-weight: 800; }
+    .table-wrap { overflow-x: auto; }
+    .acc-table { width: 100%; border-collapse: collapse; }
+    .acc-table th { background: #f8fafc; color: #475569; font-size: 13px; padding: 11px; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+    .acc-table td { padding: 11px; border-bottom: 1px solid #f1f5f9; font-size: 14px; vertical-align: top; }
+    .acc-table tr:hover td { background: #f8fafc; }
+    .doc-list { display: flex; flex-direction: column; gap: 10px; }
+    .doc-item { border: 1px solid #e5e7eb; border-radius: 14px; padding: 12px; background: #fbfdff; }
+    .doc-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 800; }
+    .doc-meta { color: #64748b; font-size: 13px; margin-top: 4px; }
+    .doc-actions { margin-top: 9px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .empty-state { color: #94a3b8; text-align: center; padding: 28px; border: 1px dashed #cbd5e1; border-radius: 14px; background: #f8fafc; }
+    @@media (max-width: 992px) { .filter-grid, .summary-grid, .section-grid { grid-template-columns: 1fr; } }
+</style>
+
+<div class="accounting-page">
+    <div class="accounting-hero">
+        <h1>Phase 2: งานบัญชีและเอกสาร</h1>
+        <p>สรุปเงินรับ-จ่าย แยกประเภทบัญชี ตรวจเอกสารประกอบ และส่งออกรายงานสำหรับตรวจสอบย้อนหลัง</p>
+    </div>
+
+    <form class="filter-card" method="get" asp-controller="Accounting" asp-action="Index">
+        <div class="filter-grid">
+            <div>
+                <label for="fromDate">วันที่เริ่มต้น</label>
+                <input type="date" id="fromDate" name="fromDate" value="@Model.FromDate.ToString("yyyy-MM-dd")" />
+            </div>
+            <div>
+                <label for="toDate">วันที่สิ้นสุด</label>
+                <input type="date" id="toDate" name="toDate" value="@Model.ToDate.ToString("yyyy-MM-dd")" />
+            </div>
+            <button class="btn-main" type="submit">กรองข้อมูล</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <a class="btn-soft" asp-controller="Accounting" asp-action="ExportCsv" asp-route-fromDate="@Model.FromDate.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate.ToString("yyyy-MM-dd")">CSV</a>
+                <a class="btn-soft" asp-controller="Accounting" asp-action="ExportPdf" asp-route-fromDate="@Model.FromDate.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate.ToString("yyyy-MM-dd")">PDF</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="summary-label">เงินรับรวม</div>
+            <div class="summary-value positive">@Model.Summary.CashInflow.ToString("N2")</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">เงินจ่ายรวม</div>
+            <div class="summary-value negative">@Model.Summary.CashOutflow.ToString("N2")</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">กระแสเงินสดสุทธิ</div>
+            <div class="summary-value @(Model.Summary.NetCashMovement >= 0 ? "positive" : "negative")">@Model.Summary.NetCashMovement.ToString("N2")</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">ลูกหนี้เงินกู้คงเหลือ</div>
+            <div class="summary-value primary">@Model.Summary.OutstandingLoanPrincipal.ToString("N2")</div>
+        </div>
+    </div>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="summary-label">รับฝากเงิน</div>
+            <div class="summary-value positive">@Model.Summary.SavingsDeposits.ToString("N2")</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">ถอนเงินฝาก</div>
+            <div class="summary-value negative">@Model.Summary.SavingsWithdrawals.ToString("N2")</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">ดอกเบี้ยรับจากเงินกู้</div>
+            <div class="summary-value warning">@Model.Summary.LoanInterestCollected.ToString("N2")</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">ดอกเบี้ยเงินฝากที่จ่าย</div>
+            <div class="summary-value negative">@Model.Summary.SavingsInterestPaid.ToString("N2")</div>
+        </div>
+    </div>
+
+    <div class="section-grid">
+        <div class="acc-card">
+            <div class="card-title-row">
+                <h2>สมุดรายวันบัญชี</h2>
+                <span class="text-muted">@Model.LedgerRows.Count รายการ</span>
+            </div>
+            @if (Model.LedgerRows.Any())
+            {
+                <div class="table-wrap">
+                    <table class="acc-table">
+                        <thead>
+                            <tr>
+                                <th>วันที่</th>
+                                <th>เลขที่</th>
+                                <th>ประเภท</th>
+                                <th>สมาชิก</th>
+                                <th>รายละเอียด</th>
+                                <th class="text-end">เดบิต</th>
+                                <th class="text-end">เครดิต</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.LedgerRows)
+                            {
+                                <tr>
+                                    <td>@row.Date.ToString("dd/MM/yyyy")</td>
+                                    <td><strong>@row.DocumentNo</strong></td>
+                                    <td>@row.Type</td>
+                                    <td>@row.MemberName</td>
+                                    <td>@row.Description</td>
+                                    <td class="text-end">@row.Debit.ToString("N2")</td>
+                                    <td class="text-end">@row.Credit.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">ไม่พบรายการบัญชีในช่วงวันที่ที่เลือก</div>
+            }
+        </div>
+
+        <div class="acc-card">
+            <div class="card-title-row">
+                <h2>ทะเบียนเอกสาร</h2>
+                <span class="text-muted">@Model.Documents.Count ฉบับ</span>
+            </div>
+            @if (Model.Documents.Any())
+            {
+                <div class="doc-list">
+                    @foreach (var doc in Model.Documents)
+                    {
+                        <div class="doc-item">
+                            <div class="doc-head">
+                                <span>@doc.DocumentNo</span>
+                                <span>@doc.Amount.ToString("N2")</span>
+                            </div>
+                            <div class="doc-meta">@doc.Category • @doc.MemberName • @doc.Date.ToString("dd/MM/yyyy")</div>
+                            <div class="doc-meta">@doc.Description</div>
+                            <div class="doc-actions">
+                                <span class="text-muted">พร้อมพิมพ์แนบแฟ้ม</span>
+                                <a class="btn-soft" href="@doc.DownloadUrl" target="_blank" rel="noopener">ดาวน์โหลด</a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">ยังไม่มีเอกสารในช่วงวันที่นี้</div>
+            }
+        </div>
+    </div>
+</div>
