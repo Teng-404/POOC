@@ -17,6 +17,9 @@ namespace POOC.Models
         public string? Address { get; set; }   
         public string? Phone { get; set; }
         public string? OwnerId { get; set; }
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedDate { get; set; }
+        public string? DeletedBy { get; set; }
         public virtual ICollection<Loan> Loans { get; set; } = new List<Loan>();
     }
     public class MemberViewModel

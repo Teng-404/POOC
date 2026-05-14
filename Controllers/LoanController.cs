@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.Globalization;
 
 [Authorize]
 public class LoanController : Controller
@@ -103,6 +104,9 @@ public class LoanController : Controller
         _context.Loans.Add(loan);
         _context.SaveChanges();
 
+        loan.ContractNo = GenerateDocumentNo("LN", loan.Id, loan.CreatedDate);
+        _context.SaveChanges();
+
         var schedule = CalculateLoan(model.Amount, model.Rate, model.Months);
 
         var details = schedule.Select(item => new LoanDetail
@@ -116,6 +120,7 @@ public class LoanController : Controller
         }).ToList();
 
         _context.LoanDetails.AddRange(details);
+        AddAuditLog("Create", "Loan", loan.Id, $"สร้างสัญญาเงินกู้ MemberId={model.MemberId} ยอด {model.Amount:N2} บาท");
         _context.SaveChanges();
 
         return Json(new { success = true });
@@ -155,14 +160,12 @@ public class LoanController : Controller
 
             if (loan != null)
             {
-                // ลบตารางลูก (งวดชำระ) ก่อนเพื่อป้องกัน Foreign Key Error
-                if (loan.LoanDetails != null)
-                {
-                    _context.LoanDetails.RemoveRange(loan.LoanDetails);
-                }
-                
-                // ลบตารางแม่ (สัญญา)
-                _context.Loans.Remove(loan);
+                // Soft delete เฉพาะสัญญา และเก็บงวดชำระไว้เป็นประวัติการเงินสำหรับตรวจสอบย้อนหลัง
+                loan.IsDeleted = true;
+                loan.DeletedDate = DateTime.Now;
+                loan.DeletedBy = GetCurrentUserId();
+                loan.Status = "Cancelled";
+                AddAuditLog("SoftDelete", "Loan", loan.Id, $"ลบสัญญาเงินกู้แบบ soft delete LoanId={loan.Id}");
                 _context.SaveChanges();
                 return Json(new { success = true });
             }
@@ -187,7 +190,9 @@ public class LoanController : Controller
         if (model == null || model.DetailId <= 0) 
             return Json(new { success = false, message = "ข้อมูลไม่ถูกต้อง" });
 
-        var detail = _context.LoanDetails.Find(model.DetailId);
+        var detail = _context.LoanDetails
+            .Include(x => x.Loan)
+            .FirstOrDefault(x => x.Id == model.DetailId);
         if (detail == null) 
             return Json(new { success = false, message = "ไม่พบข้อมูลงวดนี้" });
         
@@ -200,15 +205,19 @@ public class LoanController : Controller
 
         detail.IsPaid = true;
         detail.PaidDate = DateTime.Now;
+        detail.ReceiptNo = GenerateDocumentNo("LP", detail.Id, detail.PaidDate.Value);
 
+        AddAuditLog("PayInstallment", "LoanDetail", detail.Id, $"ชำระงวดที่ {detail.Installment} LoanId={detail.LoanId} ใบเสร็จ {detail.ReceiptNo}");
         _context.SaveChanges();
-        return Json(new { success = true });
+        return Json(new { success = true, receiptNo = detail.ReceiptNo, detailId = detail.Id });
     }
     [HttpPost]
     [IgnoreAntiforgeryToken]
     public IActionResult CancelPayment([FromBody] PayRequest model)
     {
-        var detail = _context.LoanDetails.Find(model.DetailId);
+        var detail = _context.LoanDetails
+            .Include(x => x.Loan)
+            .FirstOrDefault(x => x.Id == model.DetailId);
         if (detail == null) return Json(new { success = false, message = "ไม่พบข้อมูล" });
 
         // --- เช็คลำดับ: ห้ามยกเลิกงวดก่อนหน้า ถ้ามึงวดหลังจ่ายไปแล้ว ---
@@ -221,6 +230,8 @@ public class LoanController : Controller
 
         detail.IsPaid = false;
         detail.PaidDate = null;
+        detail.ReceiptNo = null;
+        AddAuditLog("CancelPayment", "LoanDetail", detail.Id, $"ยกเลิกชำระงวดที่ {detail.Installment} LoanId={detail.LoanId}");
         _context.SaveChanges();
         return Json(new { success = true });
     }
@@ -249,7 +260,8 @@ public class LoanController : Controller
                 d.Interest,
                 d.Balance,
                 d.IsPaid,
-                d.PaidDate
+                d.PaidDate,
+                d.ReceiptNo
             })
         }));
     }
@@ -276,7 +288,8 @@ public class LoanController : Controller
                 {
                     col.Item().AlignCenter().Text("หนังสือสัญญากู้ยืมเงิน").FontSize(18).SemiBold();
                     col.Item().AlignRight().Text($"ทำที่: ระบบบริหารจัดการเงินกู้ POOC").FontSize(10);
-                    col.Item().AlignRight().Text($"วันที่ทำสัญญา: {loan.CreatedDate.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))}").FontSize(10);
+                    col.Item().AlignRight().Text($"เลขที่สัญญา: {loan.ContractNo ?? GenerateDocumentNo("LN", loan.Id, loan.CreatedDate)}").FontSize(10);
+                    col.Item().AlignRight().Text($"วันที่ทำสัญญา: {ThaiDate(loan.CreatedDate)}").FontSize(10);
                 });
 
                 // 2. Content: เนื้อความสัญญา
@@ -362,6 +375,84 @@ public class LoanController : Controller
 
         return File(document.GeneratePdf(), "application/pdf", $"Contract_{loanId}.pdf");
     }
+
+    [HttpGet]
+    public IActionResult DownloadPaymentReceipt(int detailId)
+    {
+        var detail = _context.LoanDetails
+            .Include(x => x.Loan)
+                .ThenInclude(x => x!.Member)
+            .FirstOrDefault(x => x.Id == detailId && x.IsPaid);
+
+        if (detail == null || detail.Loan == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(detail.ReceiptNo))
+        {
+            detail.ReceiptNo = GenerateDocumentNo("LP", detail.Id, detail.PaidDate ?? DateTime.Now);
+            _context.SaveChanges();
+        }
+
+        var loan = detail.Loan;
+        var memberName = $"{loan.Member?.FirstName} {loan.Member?.LastName}".Trim();
+        var paidDate = detail.PaidDate ?? DateTime.Now;
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A5);
+                page.Margin(1.2f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontFamily("TH Sarabun New").FontSize(12));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().AlignCenter().Text("ใบเสร็จรับชำระเงินกู้").FontSize(20).SemiBold();
+                    col.Item().AlignCenter().Text("ระบบกองทุน POOC").FontSize(13);
+                    col.Item().PaddingTop(6).LineHorizontal(1);
+                });
+
+                page.Content().PaddingVertical(12).Column(col =>
+                {
+                    col.Spacing(6);
+                    col.Item().Row(row =>
+                    {
+                        row.RelativeItem().Text($"เลขที่ใบเสร็จ: {detail.ReceiptNo}").SemiBold();
+                        row.RelativeItem().AlignRight().Text($"วันที่: {ThaiDate(paidDate)}");
+                    });
+                    col.Item().Text($"ได้รับเงินจาก: {memberName}");
+                    col.Item().Text($"เลขที่สัญญา: {loan.ContractNo ?? GenerateDocumentNo("LN", loan.Id, loan.CreatedDate)}");
+                    col.Item().Text($"ชำระงวดที่: {detail.Installment}");
+
+                    col.Item().PaddingTop(8).Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn();
+                        });
+
+                        table.Cell().Element(ReceiptHeaderCell).Text("รายการ");
+                        table.Cell().Element(ReceiptHeaderCell).AlignRight().Text("จำนวนเงิน");
+                        table.Cell().Element(ReceiptCell).Text("เงินต้น");
+                        table.Cell().Element(ReceiptCell).AlignRight().Text(detail.Principal.ToString("N2"));
+                        table.Cell().Element(ReceiptCell).Text("ดอกเบี้ย");
+                        table.Cell().Element(ReceiptCell).AlignRight().Text(detail.Interest.ToString("N2"));
+                        table.Cell().Element(ReceiptTotalCell).Text("รวมรับชำระ").SemiBold();
+                        table.Cell().Element(ReceiptTotalCell).AlignRight().Text(detail.Payment.ToString("N2")).SemiBold();
+                    });
+
+                    col.Item().PaddingTop(24).AlignRight().Column(c =>
+                    {
+                        c.Item().AlignCenter().Text("ลงชื่อ........................................");
+                        c.Item().AlignCenter().Text("ผู้รับเงิน");
+                    });
+                });
+            });
+        });
+
+        return File(document.GeneratePdf(), "application/pdf", $"LoanReceipt_{detail.ReceiptNo}.pdf");
+    }
+
     [HttpGet]
     public IActionResult GetOverdueSummary()
     {
@@ -373,6 +464,7 @@ public class LoanController : Controller
             .ToList();
 
         int overdueCount = 0;
+        var penaltyRate = (double)GetDecimalSetting("PenaltyRate", 1.5m) / 100;
         double totalPenalty = 0;
 
         foreach (var loan in loans)
@@ -387,7 +479,7 @@ public class LoanController : Controller
                     overdueCount++;
                     var monthsLate = ((today.Year - dueDate.Year) * 12) + today.Month - dueDate.Month;
                     if (monthsLate < 1) monthsLate = 1;
-                    totalPenalty += detail.Payment * 0.015 * monthsLate;
+                    totalPenalty += detail.Payment * penaltyRate * monthsLate;
                 }
             }
         }
@@ -425,7 +517,8 @@ public class LoanController : Controller
                     {
                         monthsLate = ((today.Year - dueDate.Year) * 12) + today.Month - dueDate.Month;
                         if (monthsLate < 1) monthsLate = 1;
-                        penalty = Math.Round(d.Payment * 0.015 * monthsLate, 2);
+                        var penaltyRate = (double)GetDecimalSetting("PenaltyRate", 1.5m) / 100;
+                        penalty = Math.Round(d.Payment * penaltyRate * monthsLate, 2);
                     }
                     
                     return new {
@@ -437,6 +530,7 @@ public class LoanController : Controller
                         d.Balance,
                         d.IsPaid,
                         d.PaidDate,
+                        d.ReceiptNo,
                         DueDate = dueDate.ToString("yyyy-MM-dd"),
                         IsOverdue = isOverdue,
                         MonthsLate = monthsLate,
@@ -445,5 +539,49 @@ public class LoanController : Controller
                 })
             };
         }));
+    }
+
+
+    private static string GenerateDocumentNo(string prefix, int id, DateTime date)
+    {
+        return $"{prefix}-{date:yyyyMMdd}-{id:D6}";
+    }
+
+    private static string ThaiDate(DateTime date)
+    {
+        return date.ToString("dd MMMM yyyy", new CultureInfo("th-TH"));
+    }
+
+    private static IContainer ReceiptHeaderCell(IContainer container)
+    {
+        return container.Background(Colors.Grey.Lighten3).Border(1).Padding(5);
+    }
+
+    private static IContainer ReceiptCell(IContainer container)
+    {
+        return container.Border(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
+    }
+
+    private static IContainer ReceiptTotalCell(IContainer container)
+    {
+        return container.Border(1).Background(Colors.Grey.Lighten4).Padding(5);
+    }
+
+    private decimal GetDecimalSetting(string key, decimal defaultValue)
+    {
+        var value = _context.SystemSettings.FirstOrDefault(x => x.Key == key)?.Value;
+        return decimal.TryParse(value, out var parsed) ? parsed : defaultValue;
+    }
+
+    private void AddAuditLog(string action, string entityName, int? entityId, string detail)
+    {
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId = GetCurrentUserId(),
+            Action = action,
+            EntityName = entityName,
+            EntityId = entityId,
+            Detail = detail
+        });
     }
 }

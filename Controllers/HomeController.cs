@@ -13,11 +13,15 @@ public class HomeController : Controller
 
     public IActionResult Dashboard()
     {
+        var loans = _context.Loans
+            .Include(x => x.LoanDetails)
+            .ToList();
+
         // ตรวจสอบว่ามีข้อมูลไหม ถ้าไม่มีให้เป็น 0 แทน Null
-        ViewBag.TotalLoan = _context.Loans.Sum(x => (double?)x.Amount) ?? 0;
+        ViewBag.TotalLoan = loans.Sum(x => x.Amount);
         
-        // ดึงรายละเอียดงวดมาคำนวณ
-        var details = _context.LoanDetails.ToList();
+        // ดึงรายละเอียดงวดจากสัญญาที่ผ่าน query filter ของผู้ใช้ปัจจุบันเท่านั้น
+        var details = loans.SelectMany(x => x.LoanDetails).ToList();
         
         ViewBag.Collected = details.Where(x => x.IsPaid).Sum(x => x.Payment);
         ViewBag.Pending = details.Where(x => !x.IsPaid).Sum(x => x.Payment);

@@ -11,6 +11,7 @@ namespace POOC.Models
         public decimal Amount { get; set; } 
         public decimal Balance { get; set; } 
         public DateTime TransactionDate { get; set; } = DateTime.Now;
+        public string? ReceiptNo { get; set; }
         public string Description { get; set; } = string.Empty;
     }
     public class SavingsInterest

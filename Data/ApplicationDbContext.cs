@@ -21,6 +21,8 @@ namespace POOC.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Savings> Savings { get; set; }
         public DbSet<SavingsInterest> SavingsInterests { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<SystemSetting> SystemSettings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,14 +33,25 @@ namespace POOC.Data
                 .WithOne(x => x.Loan)
                 .HasForeignKey(x => x.LoanId);
 
-            var userId = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            modelBuilder.Entity<SystemSetting>()
+                .HasIndex(x => x.Key)
+                .IsUnique();
 
-            modelBuilder.Entity<Member>().HasQueryFilter(m => 
-                _httpContextAccessor.HttpContext != null && 
+            modelBuilder.Entity<Member>().HasQueryFilter(m =>
+                !m.IsDeleted &&
+                _httpContextAccessor.HttpContext != null &&
                 m.OwnerId == _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
-            modelBuilder.Entity<Loan>().HasQueryFilter(l => 
-                _httpContextAccessor.HttpContext != null && 
+
+            modelBuilder.Entity<Loan>().HasQueryFilter(l =>
+                !l.IsDeleted &&
+                _httpContextAccessor.HttpContext != null &&
                 l.OwnerId == _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            modelBuilder.Entity<LoanDetail>().HasQueryFilter(d =>
+                _httpContextAccessor.HttpContext != null &&
+                d.Loan != null &&
+                !d.Loan.IsDeleted &&
+                d.Loan.OwnerId == _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
         }
     }
 }

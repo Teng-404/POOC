@@ -12,7 +12,13 @@ namespace POOC.Models
         public double Rate { get; set; }
         public int Months { get; set; }
         public DateTime CreatedDate { get; set; } = DateTime.Now;
+        public string? ContractNo { get; set; }
         public string? OwnerId { get; set; }
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedDate { get; set; }
+        public string? DeletedBy { get; set; }
+        public string Status { get; set; } = "Active";
+        public DateTime? ClosedDate { get; set; }
         public List<LoanDetail> LoanDetails { get; set; } = new();
     }
     public class LoanDetail
@@ -25,7 +31,8 @@ namespace POOC.Models
         public double Interest { get; set; }
         public double Balance { get; set; }
         public bool IsPaid { get; set; } = false; 
-        public DateTime? PaidDate { get; set; }    
+        public DateTime? PaidDate { get; set; }
+        public string? ReceiptNo { get; set; }
         
         [JsonIgnore]
         public Loan? Loan { get; set; }

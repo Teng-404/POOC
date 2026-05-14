@@ -4,7 +4,13 @@ using System.Linq;
 using POOC.Data;
 using POOC.Models;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using System.Globalization;
 
+[Authorize]
 public class MemberController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -35,7 +41,7 @@ public class MemberController : Controller
         {
             // 1. เช็คว่าชื่อ+นามสกุล ซ้ำไหม (แบบไม่สน Filter)
             var isDuplicate = _context.Members.IgnoreQueryFilters()
-                .Any(m => m.FirstName == model.FirstName && m.LastName == model.LastName);
+                .Any(m => !m.IsDeleted && m.FirstName == model.FirstName && m.LastName == model.LastName);
 
             if (isDuplicate)
             {
@@ -50,6 +56,8 @@ public class MemberController : Controller
             model.OwnerId = GetCurrentUserId();
 
             _context.Members.Add(model);
+            _context.SaveChanges();
+            AddAuditLog("Create", "Member", model.Id, $"เพิ่มสมาชิก {model.FirstName} {model.LastName}");
             _context.SaveChanges();
 
             return RedirectToAction("Index");
@@ -75,15 +83,21 @@ public class MemberController : Controller
 
             if (member == null) return Json(new { success = false, message = "ไม่พบข้อมูลสมาชิก" });
 
-            // 2. ลบข้อมูลที่เกี่ยวข้องทั้งหมด (ถ้ามี)
+            // 2. Soft delete ข้อมูลที่เกี่ยวข้องทั้งหมด เพื่อเก็บประวัติการเงินไว้ตรวจสอบย้อนหลัง
+            var userId = GetCurrentUserId();
             foreach (var loan in member.Loans)
             {
-                _context.LoanDetails.RemoveRange(loan.LoanDetails); // ลบงวด
+                loan.IsDeleted = true;
+                loan.DeletedDate = DateTime.Now;
+                loan.DeletedBy = userId;
+                loan.Status = "Cancelled";
             }
-            _context.Loans.RemoveRange(member.Loans); // ลบสัญญา
             
-            // 3. ลบตัวสมาชิก
-            _context.Members.Remove(member);
+            // 3. Soft delete ตัวสมาชิก
+            member.IsDeleted = true;
+            member.DeletedDate = DateTime.Now;
+            member.DeletedBy = userId;
+            AddAuditLog("SoftDelete", "Member", member.Id, $"ลบสมาชิกแบบ soft delete {member.FirstName} {member.LastName}");
             _context.SaveChanges();
 
             return Json(new { success = true });
@@ -148,6 +162,7 @@ public class MemberController : Controller
         member.Address = model.Address;
 
         try {
+            AddAuditLog("Update", "Member", member.Id, $"แก้ไขข้อมูลสมาชิก {member.FirstName} {member.LastName}");
             _context.SaveChanges();
             return Json(new { success = true });
         }
@@ -194,24 +209,103 @@ public class MemberController : Controller
         _context.Savings.Add(transaction);
         _context.SaveChanges();
 
-        return Json(new { success = true });
+        var receiptPrefix = req.Type == "deposit" ? "DP" : "WD";
+        transaction.ReceiptNo = GenerateDocumentNo(receiptPrefix, transaction.Id, transaction.TransactionDate);
+        AddAuditLog(req.Type == "deposit" ? "Deposit" : "Withdraw", "Savings", transaction.Id, $"{transaction.Description} จำนวน {Math.Abs(amount):N2} บาท ใบเสร็จ {transaction.ReceiptNo}");
+        _context.SaveChanges();
+
+        return Json(new { success = true, receiptNo = transaction.ReceiptNo, transactionId = transaction.Id });
     }
     public class SavingsRequest {
         public int MemberId { get; set; }
         public decimal Amount { get; set; }
         public string Type { get; set; } = string.Empty;
     }
+
+    [HttpGet]
+    public IActionResult DownloadSavingsReceipt(int transactionId)
+    {
+        var transaction = _context.Savings.FirstOrDefault(x => x.Id == transactionId);
+        if (transaction == null) return NotFound();
+
+        var member = _context.Members.FirstOrDefault(x => x.Id == transaction.MemberId);
+        if (member == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(transaction.ReceiptNo))
+        {
+            transaction.ReceiptNo = GenerateDocumentNo(transaction.Amount >= 0 ? "DP" : "WD", transaction.Id, transaction.TransactionDate);
+            _context.SaveChanges();
+        }
+
+        var documentTitle = transaction.Amount >= 0 ? "ใบเสร็จรับฝากเงิน" : "ใบสำคัญจ่ายเงินถอน";
+        var amountLabel = transaction.Amount >= 0 ? "จำนวนเงินฝาก" : "จำนวนเงินถอน";
+        var memberName = $"{member.FirstName} {member.LastName}".Trim();
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A5);
+                page.Margin(1.2f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontFamily("TH Sarabun New").FontSize(12));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().AlignCenter().Text(documentTitle).FontSize(20).SemiBold();
+                    col.Item().AlignCenter().Text("ระบบกองทุน POOC").FontSize(13);
+                    col.Item().PaddingTop(6).LineHorizontal(1);
+                });
+
+                page.Content().PaddingVertical(12).Column(col =>
+                {
+                    col.Spacing(6);
+                    col.Item().Row(row =>
+                    {
+                        row.RelativeItem().Text($"เลขที่เอกสาร: {transaction.ReceiptNo}").SemiBold();
+                        row.RelativeItem().AlignRight().Text($"วันที่: {ThaiDate(transaction.TransactionDate)}");
+                    });
+                    col.Item().Text($"ชื่อสมาชิก: {memberName}");
+                    col.Item().Text($"รายการ: {transaction.Description}");
+
+                    col.Item().PaddingTop(8).Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn();
+                        });
+
+                        table.Cell().Element(ReceiptHeaderCell).Text("รายการ");
+                        table.Cell().Element(ReceiptHeaderCell).AlignRight().Text("จำนวนเงิน");
+                        table.Cell().Element(ReceiptCell).Text(amountLabel);
+                        table.Cell().Element(ReceiptCell).AlignRight().Text(Math.Abs(transaction.Amount).ToString("N2"));
+                        table.Cell().Element(ReceiptTotalCell).Text("ยอดคงเหลือหลังทำรายการ").SemiBold();
+                        table.Cell().Element(ReceiptTotalCell).AlignRight().Text(transaction.Balance.ToString("N2")).SemiBold();
+                    });
+
+                    col.Item().PaddingTop(24).AlignRight().Column(c =>
+                    {
+                        c.Item().AlignCenter().Text("ลงชื่อ........................................");
+                        c.Item().AlignCenter().Text("ผู้รับ/จ่ายเงิน");
+                    });
+                });
+            });
+        });
+
+        return File(document.GeneratePdf(), "application/pdf", $"SavingsReceipt_{transaction.ReceiptNo}.pdf");
+    }
+
     [HttpPost]
     public IActionResult CalculateAnnualInterest([FromBody] InterestRequest req)
     {
         int year = req.Year > 0 ? req.Year : DateTime.Now.Year;
-        decimal rate = req.Rate > 0 ? req.Rate : 5m; // default 5%
+        decimal rate = req.Rate > 0 ? req.Rate : GetDecimalSetting("SavingsInterestDefaultRate", 5m);
 
         var alreadyDone = _context.SavingsInterests.Any(x => x.Year == year);
         if (alreadyDone)
             return Json(new { success = false, message = $"คิดดอกเบี้ยปี {year} ไปแล้ว" });
 
-        var members = _context.Members.IgnoreQueryFilters().ToList();
+        var members = _context.Members.IgnoreQueryFilters().Where(m => !m.IsDeleted).ToList();
         var results = new List<object>();
 
         foreach (var m in members)
@@ -247,13 +341,14 @@ public class MemberController : Controller
             });
         }
 
+        AddAuditLog("CalculateAnnualInterest", "SavingsInterest", null, $"คิดดอกเบี้ยเงินฝากปี {year} อัตรา {rate}% จำนวน {results.Count} ราย");
         _context.SaveChanges();
         return Json(new { success = true, year, rate, results });
     }
     [HttpGet]
     public IActionResult GetSavingsSummary()
     {
-        var members = _context.Members.IgnoreQueryFilters().ToList();
+        var members = _context.Members.IgnoreQueryFilters().Where(m => !m.IsDeleted).ToList();
         var summary = members.Select(m => {
             var balance = _context.Savings
                 .Where(s => s.MemberId == m.Id)
@@ -287,7 +382,7 @@ public class MemberController : Controller
     [HttpGet]
     public IActionResult GetExportData()
     {
-        var members = _context.Members.IgnoreQueryFilters().ToList();
+        var members = _context.Members.IgnoreQueryFilters().Where(m => !m.IsDeleted).ToList();
         
         var result = members.Select(m => {
             var savings = _context.Savings
@@ -296,11 +391,12 @@ public class MemberController : Controller
 
             var loans = _context.Loans.IgnoreQueryFilters()
                 .Include(l => l.LoanDetails)
-                .Where(l => l.MemberId == m.Id)
+                .Where(l => !l.IsDeleted && l.MemberId == m.Id)
                 .ToList();
 
             var today = DateTime.Now.Date;
             int overdueCount = 0;
+            var penaltyRate = (double)GetDecimalSetting("PenaltyRate", 1.5m) / 100;
             double totalPenalty = 0;
 
             foreach (var loan in loans)
@@ -314,7 +410,7 @@ public class MemberController : Controller
                         overdueCount++;
                         var monthsLate = ((today.Year - dueDate.Year) * 12) + today.Month - dueDate.Month;
                         if (monthsLate < 1) monthsLate = 1;
-                        totalPenalty += d.Payment * 0.015 * monthsLate;
+                        totalPenalty += d.Payment * penaltyRate * monthsLate;
                     }
                 }
             }
@@ -332,5 +428,48 @@ public class MemberController : Controller
         }).ToList();
 
         return Json(result);
+    }
+
+    private static string GenerateDocumentNo(string prefix, int id, DateTime date)
+    {
+        return $"{prefix}-{date:yyyyMMdd}-{id:D6}";
+    }
+
+    private static string ThaiDate(DateTime date)
+    {
+        return date.ToString("dd MMMM yyyy", new CultureInfo("th-TH"));
+    }
+
+    private static IContainer ReceiptHeaderCell(IContainer container)
+    {
+        return container.Background(Colors.Grey.Lighten3).Border(1).Padding(5);
+    }
+
+    private static IContainer ReceiptCell(IContainer container)
+    {
+        return container.Border(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
+    }
+
+    private static IContainer ReceiptTotalCell(IContainer container)
+    {
+        return container.Border(1).Background(Colors.Grey.Lighten4).Padding(5);
+    }
+
+    private decimal GetDecimalSetting(string key, decimal defaultValue)
+    {
+        var value = _context.SystemSettings.FirstOrDefault(x => x.Key == key)?.Value;
+        return decimal.TryParse(value, out var parsed) ? parsed : defaultValue;
+    }
+
+    private void AddAuditLog(string action, string entityName, int? entityId, string detail)
+    {
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId = GetCurrentUserId(),
+            Action = action,
+            EntityName = entityName,
+            EntityId = entityId,
+            Detail = detail
+        });
     }
 }

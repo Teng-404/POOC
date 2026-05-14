@@ -560,6 +560,7 @@ function loadLoanHistory(memberId) {
                 
                 const statusContent = d.isPaid
                     ? `<span class="badge-paid">จ่ายแล้ว</span>
+                       ${d.receiptNo ? `<a href="/Loan/DownloadPaymentReceipt?detailId=${d.id}" target="_blank" style="display:inline-block;margin-left:4px;font-size:11px;color:#185FA5;text-decoration:none;"><i class="bi bi-receipt"></i> ใบเสร็จ</a>` : ''}
                        <button class="btn-cancel-pay" onclick="confirmCancelPay(${d.id})">
                            <i class="bi bi-x-circle"></i> ยกเลิก</button>`
                     : d.isOverdue
@@ -612,6 +613,7 @@ function openSavings(id, name) {
                     </td>
                     <td style="text-align:right; font-weight:500;">
                         ${item.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                        ${item.receiptNo ? `<div style="margin-top:4px;"><a href="/Member/DownloadSavingsReceipt?transactionId=${item.id}" target="_blank" style="font-size:10px; color:#185FA5; text-decoration:none;"><i class="bi bi-receipt"></i> ใบเสร็จ ${item.receiptNo}</a></div>` : ''}
                     </td>
                 </tr>`;
             });
@@ -637,7 +639,21 @@ function saveSavings() {
     })
     .then(res => res.json())
     .then(res => {
-        if (res.success) Swal.fire('สำเร็จ', 'บันทึกรายการแล้ว', 'success').then(() => location.reload());
+        if (res.success) {
+            Swal.fire({
+                title: 'สำเร็จ',
+                text: `บันทึกรายการแล้ว เลขที่เอกสาร ${res.receiptNo || '-'}`,
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: 'พิมพ์ใบเสร็จ',
+                cancelButtonText: 'ปิด'
+            }).then(result => {
+                if (result.isConfirmed && res.transactionId) {
+                    window.open(`/Member/DownloadSavingsReceipt?transactionId=${res.transactionId}`, '_blank');
+                }
+                location.reload();
+            });
+        }
         else Swal.fire('ผิดพลาด', res.message, 'error');
     });
 }
@@ -718,7 +734,21 @@ function payMoney(id) {
             })
             .then(res => res.json())
             .then(res => {
-                if (res.success) { Swal.fire('สำเร็จ', 'บันทึกการจ่ายเงินแล้ว', 'success'); loadLoanHistory(document.getElementById('loanMemberId').value); }
+                if (res.success) {
+                    Swal.fire({
+                        title: 'สำเร็จ',
+                        text: `บันทึกการจ่ายเงินแล้ว เลขที่ใบเสร็จ ${res.receiptNo || '-'}`,
+                        icon: 'success',
+                        showCancelButton: true,
+                        confirmButtonText: 'พิมพ์ใบเสร็จ',
+                        cancelButtonText: 'ปิด'
+                    }).then(result => {
+                        if (result.isConfirmed && res.detailId) {
+                            window.open(`/Loan/DownloadPaymentReceipt?detailId=${res.detailId}`, '_blank');
+                        }
+                        loadLoanHistory(document.getElementById('loanMemberId').value);
+                    });
+                }
                 else Swal.fire('ผิดพลาด', res.message || 'เกิดข้อผิดพลาด', 'error');
             });
         }
