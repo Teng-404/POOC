@@ -25,7 +25,7 @@
     .btn-export  { border:0.5px solid #d1d5db; border-radius:8px; padding:8px 14px; background:#fff; color:#374151; font-size:13px; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:5px; text-decoration:none; }
     .btn-export:hover { background:#f3f4f6; color:#374151; text-decoration:none; }
 
-    /* ── KPI strip (2 แถว 4 ช่อง) ── */
+    /* ── KPI strip ── */
     .kpi-grid      { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
     .kpi-card      { background:#fff; border:0.5px solid #e5e7eb; border-radius:10px; padding:14px 16px; }
     .kpi-label     { font-size:12px; color:#6b7280; margin-bottom:6px; display:flex; align-items:center; gap:5px; }
@@ -36,7 +36,21 @@
     .kpi-value.war { color:#b45309; }
     .kpi-chip      { font-size:10px; margin-top:4px; color:#9ca3af; }
 
-    /* ── Main area: full-width ledger + side doc list ── */
+    /* ── Annual interest section ── */
+    .interest-section { background:#fff; border:0.5px solid #e5e7eb; border-radius:12px; overflow:hidden; margin-bottom:24px; }
+    .interest-section-head { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:0.5px solid #f3f4f6; }
+    .interest-section-head h2 { margin:0; font-size:15px; font-weight:600; color:#111827; }
+    .interest-form-row { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; padding:16px 16px 0; }
+    .int-field { display:flex; flex-direction:column; gap:4px; }
+    .int-field label { font-size:12px; color:#6b7280; }
+    .int-field input { border:1px solid #d1d5db; border-radius:8px; padding:7px 10px; font-size:13px; background:#fff; width:130px; }
+    .btn-calc { border:0; border-radius:8px; padding:8px 18px; background:#185FA5; color:#fff; font-size:13px; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+    .btn-calc:hover { background:#0C447C; }
+    .int-note { font-size:12px; color:#9ca3af; align-self:center; }
+    .interest-history { padding:16px; }
+    .interest-history-title { font-size:12px; color:#6b7280; margin-bottom:8px; }
+
+    /* ── Main area ── */
     .main-grid   { display:grid; grid-template-columns:1fr 320px; gap:16px; align-items:start; }
 
     /* ── Card wrapper ── */
@@ -109,7 +123,7 @@
         </span>
     </div>
 
-        <!-- FILTER BAR -->
+    <!-- FILTER BAR -->
     <form class="filter-bar" method="get" asp-controller="Accounting" asp-action="Index">
         <div>
             <label for="fromDate">วันที่เริ่มต้น</label>
@@ -137,7 +151,6 @@
             <i class="bi bi-file-earmark-pdf"></i> PDF
         </a>
     </form>
-
 
     <!-- KPI ROW 1: เงินรับ/จ่าย/สุทธิ/ลูกหนี้ -->
     <div class="kpi-grid">
@@ -181,10 +194,73 @@
         </div>
     </div>
 
+    <!-- ANNUAL INTEREST SECTION -->
+    <div class="interest-section">
+        <div class="interest-section-head">
+            <h2><i class="bi bi-calendar-check" style="margin-right:6px;color:#185FA5"></i>จ่ายดอกเบี้ยเงินฝากประจำปี</h2>
+        </div>
+
+        <div class="interest-form-row">
+            <div class="int-field">
+                <label>ปี (พ.ศ.)</label>
+                <input type="number" id="interestYear" value="@(DateTime.Now.Year + 543)" />
+            </div>
+            <div class="int-field">
+                <label>อัตราดอกเบี้ย (%/ปี)</label>
+                <input type="number" id="interestRate" value="5" step="0.01" />
+            </div>
+            <button class="btn-calc" onclick="calcInterest()">
+                <i class="bi bi-calculator"></i> คำนวณและบันทึก
+            </button>
+            <span class="int-note">ดำเนินการได้ครั้งเดียวต่อปี</span>
+        </div>
+
+        <div class="interest-history">
+            @if (Model.InterestHistory.Any())
+            {
+                <p class="interest-history-title">ประวัติการจ่ายดอกเบี้ย (@Model.InterestHistory.Count ปี)</p>
+                <div class="ledger-wrap">
+                    <table class="ledger-table">
+                        <thead>
+                            <tr>
+                                <th>ปี (พ.ศ.)</th>
+                                <th class="text-end">อัตรา (%)</th>
+                                <th class="text-end">ยอดฝากรวม</th>
+                                <th class="text-end">ดอกเบี้ยที่จ่าย</th>
+                                <th style="text-align:center;">จำนวนสมาชิก</th>
+                                <th>วันที่ดำเนินการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.InterestHistory)
+                            {
+                                <tr>
+                                    <td>@(row.Year + 543)</td>
+                                    <td class="text-end">@row.Rate.ToString("N2")</td>
+                                    <td class="text-end">฿@row.TotalPrincipal.ToString("N2")</td>
+                                    <td class="text-end credit-val">฿@row.TotalInterest.ToString("N2")</td>
+                                    <td style="text-align:center;">@row.MemberCount คน</td>
+                                    <td>@row.CreatedDate.ToString("dd MMM yyyy HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state" style="padding:20px;">
+                    <i class="bi bi-calendar-x"></i>
+                    ยังไม่มีประวัติการจ่ายดอกเบี้ย
+                </div>
+            }
+        </div>
+    </div>
+
     <!-- MAIN CONTENT -->
     <div class="main-grid">
 
-        <!-- Ledger Table (ซ้าย กว้าง) -->
+        <!-- Ledger Table (ซ้าย) -->
         <div class="acc-card">
             <div class="acc-card-head">
                 <h2><i class="bi bi-journal-text" style="margin-right:6px;color:#185FA5"></i>สมุดรายวันบัญชี</h2>
@@ -211,15 +287,15 @@
                                 {
                                     var typeCss = row.Type.Contains("ฝาก") && !row.Type.Contains("ถอน") ? "type-ฝาก"
                                                 : row.Type.Contains("ถอน") ? "type-ถอน"
-                                                : row.Type.Contains("กู้") ? "type-กู้"
+                                                : row.Type.Contains("กู้") && !row.Type.Contains("ชำระ") ? "type-กู้"
                                                 : row.Type.Contains("ชำระ") ? "type-ชำระ"
                                                 : "type-ดอก";
                                     <tr>
-                                        <td style="color:#6b7280;white-space:nowrap;">@row.Date.ToString("dd/MM/yy")</td>
+                                        <td>@row.Date.ToString("dd/MM/yyyy")</td>
                                         <td><span class="doc-no">@row.DocumentNo</span></td>
                                         <td><span class="type-badge @typeCss">@row.Type</span></td>
-                                        <td style="white-space:nowrap;">@row.MemberName</td>
-                                        <td style="color:#6b7280;font-size:12px;">@row.Description</td>
+                                        <td>@row.MemberName</td>
+                                        <td style="font-size:12px;color:#6b7280;">@row.Description</td>
                                         <td class="text-end @(row.Debit > 0 ? "debit-val" : "")">
                                             @(row.Debit > 0 ? row.Debit.ToString("N2") : "—")
                                         </td>
@@ -287,3 +363,66 @@
     </div><!-- /main-grid -->
 
 </div><!-- /container -->
+
+<script>
+async function calcInterest() {
+    const yearBE = parseInt(document.getElementById('interestYear').value);
+    const year   = yearBE - 543;
+    const rate   = parseFloat(document.getElementById('interestRate').value);
+
+    if (isNaN(year) || isNaN(rate) || rate <= 0) {
+        return Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกปีและอัตราดอกเบี้ยให้ครบ', 'warning');
+    }
+
+    const { isConfirmed } = await Swal.fire({
+        title: `ยืนยันคิดดอกเบี้ยปี ${yearBE}?`,
+        html: `อัตรา <b>${rate}%</b> ต่อปี<br>
+               <small class="text-danger">ดำเนินการได้ครั้งเดียวต่อปี และจะบันทึกเข้ายอดเงินฝากสมาชิกทุกคน</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#185FA5',
+        confirmButtonText: 'ยืนยัน',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!isConfirmed) return;
+
+    Swal.fire({ title: 'กำลังคำนวณ...', didOpen: () => Swal.showLoading() });
+
+    try {
+        const res  = await fetch('/Accounting/CalculateAnnualInterest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ year, rate })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            const rows = data.results.map(r =>
+                `<tr>
+                    <td>${r.name}</td>
+                    <td class="text-end">฿${Number(r.principal).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                    <td class="text-end text-success fw-bold">+฿${Number(r.interest).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                </tr>`
+            ).join('');
+
+            await Swal.fire({
+                title: `คิดดอกเบี้ยปี ${yearBE} สำเร็จ`,
+                html: `<div style="max-height:300px;overflow-y:auto;">
+                           <table class="table table-sm">
+                               <thead><tr><th>ชื่อ</th><th class="text-end">ยอดฝาก</th><th class="text-end">ดอกเบี้ย</th></tr></thead>
+                               <tbody>${rows}</tbody>
+                           </table>
+                       </div>`,
+                icon: 'success'
+            });
+
+            location.reload();
+        } else {
+            Swal.fire('ไม่สำเร็จ', data.message, 'error');
+        }
+    } catch {
+        Swal.fire('ผิดพลาด', 'การเชื่อมต่อล้มเหลว กรุณาลองใหม่', 'error');
+    }
+}
+</script>

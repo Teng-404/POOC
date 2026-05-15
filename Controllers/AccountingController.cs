@@ -63,6 +63,63 @@ public class AccountingController : Controller
         return File(document.GeneratePdf(), "application/pdf", $"Accounting_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf");
     }
 
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public IActionResult CalculateAnnualInterest([FromBody] InterestRequest req)
+    {
+        int year = req.Year > 0 ? req.Year : DateTime.Now.Year;
+        decimal rate = req.Rate > 0 ? req.Rate : GetDecimalSetting("SavingsInterestDefaultRate", 5m);
+
+        var alreadyDone = _context.SavingsInterests.Any(x => x.Year == year);
+        if (alreadyDone)
+            return Json(new { success = false, message = $"คิดดอกเบี้ยปี {year} ไปแล้ว" });
+
+        var members = _context.Members.IgnoreQueryFilters().Where(m => !m.IsDeleted).ToList();
+        var results = new List<object>();
+
+        foreach (var m in members)
+        {
+            var balance = _context.Savings
+                .Where(s => s.MemberId == m.Id)
+                .Sum(s => (decimal?)s.Amount) ?? 0;
+
+            if (balance <= 0) continue;
+
+            decimal interest = Math.Round(balance * rate / 100, 2);
+
+            _context.SavingsInterests.Add(new SavingsInterest
+            {
+                MemberId = m.Id,
+                Year = year,
+                PrincipalSnapshot = balance,
+                Rate = rate,
+                InterestAmount = interest
+            });
+
+            var newBalance = balance + interest;
+            _context.Savings.Add(new Savings
+            {
+                MemberId = m.Id,
+                Amount = interest,
+                Balance = newBalance,
+                Description = $"ดอกเบี้ยเงินฝากประจำปี {year} ({rate}%)"
+            });
+
+            results.Add(new
+            {
+                name = $"{m.FirstName} {m.LastName}",
+                principal = balance,
+                interest
+            });
+        }
+
+        AddAuditLog("CalculateAnnualInterest", "SavingsInterest", null,
+            $"คิดดอกเบี้ยเงินฝากปี {year} อัตรา {rate}% จำนวน {results.Count} ราย");
+        _context.SaveChanges();
+
+        return Json(new { success = true, year, rate, results });
+    }
+
     private AccountingIndexViewModel BuildReport(DateTime from, DateTime to)
     {
         var visibleMembers = _context.Members.AsNoTracking().ToList();
@@ -149,10 +206,7 @@ public class AccountingController : Controller
 
         foreach (var detail in loanDetails)
         {
-            if (detail.Loan == null)
-            {
-                continue;
-            }
+            if (detail.Loan == null) continue;
 
             var memberName = detail.Loan.Member != null
                 ? $"{detail.Loan.Member.FirstName} {detail.Loan.Member.LastName}".Trim()
@@ -195,13 +249,29 @@ public class AccountingController : Controller
                 .Sum(l => (decimal)Math.Max(0, l.Amount - l.LoanDetails.Where(d => d.IsPaid).Sum(d => d.Principal)))
         };
 
+        var interestHistory = _context.SavingsInterests
+            .AsNoTracking()
+            .GroupBy(x => new { x.Year, x.Rate })
+            .Select(g => new AnnualInterestHistoryRow
+            {
+                Year = g.Key.Year,
+                Rate = g.Key.Rate,
+                TotalPrincipal = g.Sum(x => x.PrincipalSnapshot),
+                TotalInterest = g.Sum(x => x.InterestAmount),
+                MemberCount = g.Count(),
+                CreatedDate = g.Max(x => x.CreatedDate)
+            })
+            .OrderByDescending(x => x.Year)
+            .ToList();
+
         return new AccountingIndexViewModel
         {
             FromDate = from,
             ToDate = to,
             Summary = summary,
             LedgerRows = ledgerRows.OrderByDescending(r => r.Date).ThenByDescending(r => r.DocumentNo).ToList(),
-            Documents = documents.OrderByDescending(d => d.Date).ThenByDescending(d => d.DocumentNo).ToList()
+            Documents = documents.OrderByDescending(d => d.Date).ThenByDescending(d => d.DocumentNo).ToList(),
+            InterestHistory = interestHistory
         };
     }
 
@@ -280,10 +350,10 @@ public class AccountingController : Controller
                         table.ColumnsDefinition(columns =>
                         {
                             columns.ConstantColumn(65);
-                            columns.ConstantColumn(70);
-                            columns.ConstantColumn(90);
-                            columns.RelativeColumn();
-                            columns.RelativeColumn(1.6f);
+                            columns.ConstantColumn(75);
+                            columns.ConstantColumn(80);
+                            columns.RelativeColumn(1.5f);
+                            columns.RelativeColumn(2.5f);
                             columns.ConstantColumn(70);
                             columns.ConstantColumn(70);
                         });
@@ -358,21 +428,10 @@ public class AccountingController : Controller
         });
     }
 
-    private static void AddHeaderCell(TableDescriptor header, string text)
-    {
-        header.Cell().Background(Colors.Grey.Lighten3).Padding(4).Text(text).SemiBold();
-    }
-
-    private static void AddBodyCell(TableDescriptor table, string text)
-    {
-        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(3).Text(text);
-    }
-
     private static (DateTime From, DateTime To) NormalizeDateRange(string? fromDate, string? toDate)
     {
         var today = DateTime.Now.Date;
 
-        // parse yyyy-MM-dd ด้วย InvariantCulture เพื่อป้องกัน th-TH แปลงปีผิด
         var from = DateTime.TryParseExact(fromDate, "yyyy-MM-dd",
                     CultureInfo.InvariantCulture, DateTimeStyles.None, out var f)
                 ? f.Date
@@ -397,4 +456,29 @@ public class AccountingController : Controller
         var escaped = value.Replace("\"", "\"\"");
         return $"\"{escaped}\"";
     }
+
+    private decimal GetDecimalSetting(string key, decimal defaultValue)
+    {
+        var value = _context.SystemSettings.FirstOrDefault(x => x.Key == key)?.Value;
+        return decimal.TryParse(value, out var parsed) ? parsed : defaultValue;
+    }
+
+    private void AddAuditLog(string action, string entityName, int? entityId, string detail)
+    {
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            Action = action,
+            EntityName = entityName,
+            EntityId = entityId,
+            Detail = detail
+        });
+    }
+}
+
+public class InterestRequest
+{
+    public int Year { get; set; }
+    public decimal Rate { get; set; }
 }

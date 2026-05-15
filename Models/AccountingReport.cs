@@ -7,8 +7,10 @@ namespace POOC.Models
         public AccountingSummary Summary { get; set; } = new();
         public List<AccountingLedgerRow> LedgerRows { get; set; } = new();
         public List<AccountingDocumentRow> Documents { get; set; } = new();
-    }
 
+        // ประวัติการคิดดอกเบี้ยเงินฝากแต่ละปี (เพิ่มใหม่)
+        public List<AnnualInterestHistoryRow> InterestHistory { get; set; } = new();
+    }
     public class AccountingSummary
     {
         public decimal SavingsDeposits { get; set; }
@@ -22,7 +24,6 @@ namespace POOC.Models
         public decimal CashOutflow => SavingsWithdrawals + SavingsInterestPaid + LoanDisbursed;
         public decimal NetCashMovement => CashInflow - CashOutflow;
     }
-
     public class AccountingLedgerRow
     {
         public DateTime Date { get; set; }
@@ -33,7 +34,6 @@ namespace POOC.Models
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
     }
-
     public class AccountingDocumentRow
     {
         public DateTime Date { get; set; }
@@ -43,5 +43,14 @@ namespace POOC.Models
         public string Description { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public string DownloadUrl { get; set; } = string.Empty;
+    }
+    public class AnnualInterestHistoryRow
+    {
+        public int Year { get; set; }
+        public decimal Rate { get; set; }
+        public decimal TotalPrincipal { get; set; }
+        public decimal TotalInterest { get; set; }
+        public int MemberCount { get; set; }
+        public DateTime CreatedDate { get; set; }
     }
 }

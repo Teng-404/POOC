@@ -33,13 +33,6 @@
     .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0; }
     .member-bal { font-weight: 500; color: #111827; text-align: right; }
     .member-int { color: #059669; font-size: 12px; text-align: right; }
-    .interest-card { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 16px; }
-    .interest-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-    .field-wrap { display: flex; flex-direction: column; gap: 4px; }
-    .field-label { font-size: 12px; color: #6b7280; }
-    .field-wrap input { width: 140px; font-size: 13px; }
-    .btn-calc { padding: 8px 20px; font-size: 13px; font-weight: 500; background: #185FA5; color: #E6F1FB; border: none; border-radius: 8px; cursor: pointer; }
-    .btn-calc:hover { background: #0C447C; }
     .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; }
     .bar-label { width: 72px; color: #6b7280; text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .bar-track { flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
@@ -119,32 +112,6 @@
             </div>
             <div class="metric-value">฿@(ViewBag.TotalInterest?.ToString("N2") ?? "0.00")</div>
             <div class="metric-delta up">กำไรสะสม</div>
-        </div>
-    </div>
-
-    <!-- INTEREST CALCULATOR -->
-    <div class="interest-card">
-        <div class="card-head" style="margin-bottom:0.75rem;">
-            <p class="card-title">
-                <i class="bi bi-calendar-check" style="margin-right:6px;"></i>
-                คิดดอกเบี้ยเงินฝากประจำปี
-            </p>
-        </div>
-        <div class="interest-row">
-            <div class="field-wrap">
-                <label class="field-label">ปี (พ.ศ.)</label>
-                <input type="number" id="interestYear" value="@(DateTime.Now.Year + 543)" />
-            </div>
-            <div class="field-wrap">
-                <label class="field-label">อัตราดอกเบี้ย (%/ปี)</label>
-                <input type="number" id="interestRate" value="5" step="0.01" />
-            </div>
-            <button class="btn-calc" onclick="calcInterest()">
-                <i class="bi bi-calculator" style="margin-right:5px;"></i>คำนวณและบันทึก
-            </button>
-            <span style="font-size:12px; color:#9ca3af; align-self:flex-end; padding-bottom:2px;">
-                ดำเนินการได้ครั้งเดียวต่อปี
-            </span>
         </div>
     </div>
 
@@ -235,7 +202,7 @@ let savingsChartInstance = null;
 
 // คำนวณ % เก็บคืน
 (function initLoanProgress() {
-    const total  = parseFloat('@(ViewBag.TotalLoan ?? 0)');
+    const total     = parseFloat('@(ViewBag.TotalLoan ?? 0)');
     const collected = parseFloat('@(ViewBag.Collected ?? 0)');
     if (total > 0) {
         const pct = (collected / total * 100).toFixed(1);
@@ -283,7 +250,7 @@ async function loadSavingsSummary() {
         // --- member detail rows ---
         let memberHtml = '';
         data.members.forEach((m, i) => {
-            const color = CHART_COLORS[i % CHART_COLORS.length];
+            const color   = CHART_COLORS[i % CHART_COLORS.length];
             const initials = m.name.split(' ').map(w => w.charAt(0)).join('').slice(0, 2);
             memberHtml += `
             <div class="member-row">
@@ -350,69 +317,6 @@ async function loadSavingsSummary() {
     } catch (err) {
         document.getElementById('barRows').innerHTML =
             '<div class="loading-row" style="color:#dc2626;">โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
-    }
-}
-
-async function calcInterest() {
-    const yearBE = parseInt(document.getElementById('interestYear').value);
-    const year   = yearBE - 543;
-    const rate   = parseFloat(document.getElementById('interestRate').value);
-
-    if (isNaN(year) || isNaN(rate) || rate <= 0) {
-        return Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกปีและอัตราดอกเบี้ยให้ครบ', 'warning');
-    }
-
-    const { isConfirmed } = await Swal.fire({
-        title: `ยืนยันคิดดอกเบี้ยปี ${yearBE}?`,
-        html: `อัตรา <b>${rate}%</b> ต่อปี<br>
-               <small class="text-danger">ดำเนินการได้ครั้งเดียวต่อปี</small>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#185FA5',
-        confirmButtonText: 'ยืนยัน',
-        cancelButtonText: 'ยกเลิก'
-    });
-
-    if (!isConfirmed) return;
-
-    Swal.fire({ title: 'กำลังคำนวณ...', didOpen: () => Swal.showLoading() });
-
-    try {
-        const res  = await fetch('/Member/CalculateAnnualInterest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ year, rate })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-            const rows = data.results.map(r =>
-                `<tr>
-                    <td>${r.name}</td>
-                    <td class="text-end">฿${Number(r.principal).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                    <td class="text-end text-success fw-bold">+฿${Number(r.interest).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                </tr>`
-            ).join('');
-
-            await Swal.fire({
-                title: `คิดดอกเบี้ยปี ${yearBE} สำเร็จ`,
-                html: `<div style="max-height:300px; overflow-y:auto;">
-                           <table class="table table-sm">
-                               <thead>
-                                   <tr><th>ชื่อ</th><th class="text-end">ยอดฝาก</th><th class="text-end">ดอกเบี้ย</th></tr>
-                               </thead>
-                               <tbody>${rows}</tbody>
-                           </table>
-                       </div>`,
-                icon: 'success'
-            });
-
-            loadSavingsSummary();
-        } else {
-            Swal.fire('ไม่สำเร็จ', data.message, 'error');
-        }
-    } catch {
-        Swal.fire('ผิดพลาด', 'การเชื่อมต่อล้มเหลว กรุณาลองใหม่', 'error');
     }
 }
 
