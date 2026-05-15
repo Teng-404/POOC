@@ -42,6 +42,17 @@
     .btn-act.del      { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
     .btn-act.del:hover      { background: #fee2e2; }
     .empty-row { text-align: center; padding: 40px; color: #9ca3af; font-size: 13px; }
+    #loanModal .modal-body          { padding: 1.25rem 1.5rem; }
+    #loanModal .loan-table-wrap     { overflow-x: auto; margin: 0 -0.25rem; }
+    #loanModal .member-table        { font-size: 12.5px; }
+    #loanModal .member-table th,
+    #loanModal .member-table td     { padding: 8px 10px; white-space: nowrap; }
+    #loanModal .member-table th     { font-size: 11.5px; }
+    #loanModal .member-table .col-status { min-width: 90px; }
+    #loanModal .member-table .col-action { min-width: 120px; text-align: right; }
+    #loanModal .loan-summary-bar    { display: flex; gap: 16px; flex-wrap: wrap; background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 12px; }
+    #loanModal .loan-summary-bar span { color: #6b7280; }
+    #loanModal .loan-summary-bar b   { color: #111827; margin-left: 4px; font-variant-numeric: tabular-nums; }
 
     .modal-content { border: 0.5px solid #e5e7eb; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
     .modal-header { border-bottom: 0.5px solid #f3f4f6; padding: 1rem 1.25rem; }
@@ -86,6 +97,8 @@
            asp-controller="Home" asp-action="Member">สมาชิก</a>
         <a class="db-tab @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")"
            asp-controller="Home" asp-action="Dashboard">ภาพรวม</a>
+        <a class="db-tab @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounting" ? "active" : "")"
+       asp-controller="Accounting" asp-action="Index">เอกสารและบัญชี</a>
     </div>
 
     <!-- HEADER -->
@@ -260,7 +273,7 @@
 
 <!-- ================= LOAN MODAL ================= -->
 <div class="modal fade" id="loanModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
@@ -307,7 +320,7 @@
 
                 <div style="margin: 1rem 0; border-top: 0.5px solid #f3f4f6;"></div>
 
-                <div style="max-height: 380px; overflow-y: auto;">
+                <div class="loan-table-wrap" style="max-height: 400px; overflow-y: auto;">
                     <table class="member-table">
                         <thead>
                             <tr>
@@ -322,6 +335,12 @@
                     </table>
                 </div>
 
+                <div id="loanSummaryBar" class="loan-summary-bar" style="display:none;">
+                    <div><span>เงินกู้ทั้งหมด</span><b id="sumTotal">—</b></div>
+                    <div><span>ชำระแล้ว</span><b id="sumPaid" style="color:#059669;">—</b></div>
+                    <div><span>คงเหลือ</span><b id="sumRemain" style="color:#185FA5;">—</b></div>
+                    <div><span>งวดที่เหลือ</span><b id="sumLeft">—</b></div>
+                </div>
                 <div style="margin-top:10px; display:flex; justify-content:flex-end;">
                     <button class="btn-modal-save" onclick="saveLoan()">
                         <i class="bi bi-floppy"></i> บันทึกสัญญา
@@ -538,11 +557,47 @@ function loadLoanHistory(memberId) {
     fetch('/Loan/GetLoanHistoryWithOverdue?memberId=' + memberId)
     .then(res => res.json())
     .then(data => {
+        // ── ซ่อน summary bar ถ้าไม่มีข้อมูล ──────────────────────
+        const bar = document.getElementById('loanSummaryBar');
+ 
         if (!data || data.length === 0) {
             document.getElementById('loanTableBody').innerHTML =
                 '<tr><td colspan="7" class="empty-row" style="padding:20px;">ยังไม่มีสัญญากู้</td></tr>';
+            if (bar) bar.style.display = 'none';
             return;
         }
+ 
+        // ── คำนวณ summary รวมทุกสัญญา ─────────────────────────────
+        let sumTotal   = 0; // เงินกู้ทั้งหมด (ทุกสัญญา)
+        let sumPaid    = 0; // เงินต้นที่ชำระแล้ว
+        let sumRemain  = 0; // เงินต้นคงเหลือ
+        let sumLeft    = 0; // งวดที่ยังไม่ได้จ่าย
+ 
+        data.forEach(loan => {
+            sumTotal += loan.amount ?? 0;
+            (loan.loanDetails ?? []).forEach(d => {
+                if (d.isPaid) {
+                    sumPaid += d.principal ?? 0;
+                } else {
+                    sumRemain += d.balance ?? d.principal ?? 0;
+                    sumLeft++;
+                }
+            });
+        });
+ 
+        // ── summary bar ────────
+        if (bar) {
+            bar.style.display = 'flex';
+            document.getElementById('sumTotal').textContent =
+                '฿' + sumTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+            document.getElementById('sumPaid').textContent =
+                '฿' + sumPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+            document.getElementById('sumRemain').textContent =
+                '฿' + sumRemain.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+            document.getElementById('sumLeft').textContent = sumLeft + ' งวด';
+        }
+ 
+        // ── Render ตาราง ─────────────────────
         let html = '';
         data.forEach(loan => {
             const statusClass = loan.status === 'Pending' ? 'badge-pending'
@@ -581,10 +636,10 @@ function loadLoanHistory(memberId) {
                     </div>
                 </div>
             </td></tr>`;
-            
+ 
             loan.loanDetails.forEach(d => {
                 const dueDateStr = new Date(d.dueDate).toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'});
-                
+ 
                 let rowStyle = '';
                 let overdueTag = '';
                 if (d.isOverdue) {
@@ -594,7 +649,7 @@ function loadLoanHistory(memberId) {
                         | ค่าปรับ ฿${d.penalty.toFixed(2)}
                     </div>`;
                 }
-                
+ 
                 const paidInfo = d.paidAmount > 0 && !d.isPaid
                     ? `<div style="font-size:10px; color:#92400e; margin-top:2px;">จ่ายแล้ว ฿${d.paidAmount.toFixed(2)} / เหลือ ฿${d.remainingPayment.toFixed(2)}</div>`
                     : '';
@@ -612,7 +667,7 @@ function loadLoanHistory(memberId) {
                                <i class="bi bi-exclamation-circle"></i> จ่ายเงิน
                            </button>`
                         : `<button class="btn-pay" ${paymentDisabled} onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)})">จ่ายเงิน</button>`;
-
+ 
                 html += `<tr style="${rowStyle}">
                     <td>${d.installment}</td>
                     <td>

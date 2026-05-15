@@ -20,7 +20,7 @@ public class AccountingController : Controller
         _context = context;
     }
 
-    public IActionResult Index(DateTime? fromDate, DateTime? toDate)
+    public IActionResult Index(string? fromDate, string? toDate)
     {
         var (from, to) = NormalizeDateRange(fromDate, toDate);
         var report = BuildReport(from, to);
@@ -28,7 +28,7 @@ public class AccountingController : Controller
     }
 
     [HttpGet]
-    public IActionResult ExportCsv(DateTime? fromDate, DateTime? toDate)
+    public IActionResult ExportCsv(string? fromDate, string? toDate)
     {
         var (from, to) = NormalizeDateRange(fromDate, toDate);
         var report = BuildReport(from, to);
@@ -54,7 +54,7 @@ public class AccountingController : Controller
     }
 
     [HttpGet]
-    public IActionResult ExportPdf(DateTime? fromDate, DateTime? toDate)
+    public IActionResult ExportPdf(string? fromDate, string? toDate)
     {
         var (from, to) = NormalizeDateRange(fromDate, toDate);
         var report = BuildReport(from, to);
@@ -368,17 +368,22 @@ public class AccountingController : Controller
         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(3).Text(text);
     }
 
-    private static (DateTime From, DateTime To) NormalizeDateRange(DateTime? fromDate, DateTime? toDate)
+    private static (DateTime From, DateTime To) NormalizeDateRange(string? fromDate, string? toDate)
     {
         var today = DateTime.Now.Date;
-        var from = (fromDate ?? new DateTime(today.Year, today.Month, 1)).Date;
-        var to = (toDate ?? today).Date;
 
-        if (from > to)
-        {
-            (from, to) = (to, from);
-        }
+        // parse yyyy-MM-dd ด้วย InvariantCulture เพื่อป้องกัน th-TH แปลงปีผิด
+        var from = DateTime.TryParseExact(fromDate, "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out var f)
+                ? f.Date
+                : new DateTime(today.Year, today.Month, 1);
 
+        var to = DateTime.TryParseExact(toDate, "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out var t)
+                ? t.Date
+                : today;
+
+        if (from > to) (from, to) = (to, from);
         return (from, to);
     }
 
