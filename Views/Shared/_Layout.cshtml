@@ -1,5 +1,5 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="th">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,71 +7,536 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/POOC.styles.css" asp-append-version="true" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@tabler/icons-webfont@@latest/tabler-icons.min.css" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background: #eeede8;
+            margin: 0;
+        }
+
+        /* ── Navbar ── */
+        .pooc-nav {
+            display: flex;
+            height: 56px;
+            background: #ffffff;
+            border-bottom: 0.5px solid rgba(0,0,0,0.12);
+            position: sticky;
+            position: relative;
+            top: 0;
+            z-index: 100;
+        }
+        .pooc-nav-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a1a18;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .pooc-nav-center i { font-size: 15px; color: #5f5e5a; }
+        .pooc-nav-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 6px;
+        }
+        .pooc-nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a18;
+            letter-spacing: -0.02em;
+            text-decoration: none;
+            margin-right: 16px;
+        }
+        .pooc-nav-logo:hover { text-decoration: none; color: #1a1a18; }
+        .pooc-logo-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #1D9E75;
+        }
+        .pooc-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #5f5e5a;
+            text-decoration: none;
+            transition: background 0.15s, color 0.15s;
+        }
+        .pooc-nav-link:hover { background: #f5f5f3; color: #1a1a18; text-decoration: none; }
+        .pooc-nav-link.active { background: #f5f5f3; color: #1a1a18; font-weight: 500; }
+        .pooc-nav-link i { font-size: 15px; }
+
+        .pooc-nav-user {
+            background: #f5f5f3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 16px;
+            border-left: 0.5px solid rgba(0,0,0,0.12);
+            flex-shrink: 0;
+        }
+        .pooc-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1D9E75, #0F6E56);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .pooc-user-name { font-size: 13px; font-weight: 500; color: #1a1a18; }
+        .pooc-user-role { font-size: 11px; color: #88877f; }
+
+        .pooc-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 11px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: 'Sarabun', sans-serif;
+            white-space: nowrap;
+            border: 0.5px solid rgba(0,0,0,0.2);
+            background: transparent;
+            color: #5f5e5a;
+            transition: background 0.15s;
+            text-decoration: none;
+        }
+        .pooc-nav-btn:hover { background: #ffffff; color: #1a1a18; text-decoration: none; }
+        .pooc-nav-btn i { font-size: 14px; }
+        .pooc-nav-btn.danger {
+            background: #FAECE7;
+            border-color: #F0997B;
+            color: #993C1D;
+        }
+        .pooc-nav-btn.danger:hover { opacity: 0.8; }
+
+        /* ── Page wrapper ── */
+        .pooc-body { padding: 24px; min-height: calc(100vh - 56px); }
+
+        /* ── Overlay ── */
+        .pooc-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .pooc-overlay.open { opacity: 1; pointer-events: all; }
+
+        /* ── Modal ── */
+        .pooc-modal {
+            background: #ffffff;
+            border: 0.5px solid rgba(0,0,0,0.12);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            margin: 16px;
+            transform: translateY(16px) scale(0.97);
+            opacity: 0;
+            transition: transform 0.22s ease, opacity 0.22s ease;
+            overflow: hidden;
+        }
+        .pooc-overlay.open .pooc-modal { transform: translateY(0) scale(1); opacity: 1; }
+
+        /* Header: icon ＋ title ＋ X — no subtitle */
+        .pooc-modal-header {
+            padding: 14px 16px 12px;
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pooc-modal-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #E1F5EE;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0F6E56;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .pooc-modal-title {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a18;
+            margin: 0;
+        }
+        .pooc-modal-close {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: 0.5px solid rgba(0,0,0,0.12);
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #88877f;
+            font-size: 16px;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .pooc-modal-close:hover { background: #f5f5f3; color: #1a1a18; }
+
+        /* Body */
+        .pooc-modal-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .pooc-field { display: flex; flex-direction: column; gap: 4px; }
+        .pooc-field-label { font-size: 12px; font-weight: 500; color: #5f5e5a; }
+        .pooc-field-wrap { position: relative; display: flex; align-items: center; }
+        .pooc-field-input {
+            width: 100%;
+            height: 40px;
+            padding: 0 38px 0 12px;
+            border-radius: 8px;
+            border: 0.5px solid rgba(0,0,0,0.2);
+            background: #ffffff;
+            font-size: 13px;
+            font-family: 'Sarabun', sans-serif;
+            color: #1a1a18;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .pooc-field-input:focus {
+            border-color: #1D9E75;
+            box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+        }
+        .pooc-field-input::-ms-reveal,
+        .pooc-field-input::-ms-clear { display: none !important; }
+        .pooc-field-eye {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #88877f;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            padding: 0;
+            transition: color 0.15s;
+        }
+        .pooc-field-eye:hover { color: #5f5e5a; }
+
+        /* Strength bar */
+        .pooc-sbar { display: flex; gap: 3px; margin-top: 3px; }
+        .pooc-seg { height: 3px; flex: 1; border-radius: 2px; background: rgba(0,0,0,0.1); transition: background 0.25s; }
+        .pooc-seg.weak   { background: #D85A30; }
+        .pooc-seg.medium { background: #BA7517; }
+        .pooc-seg.strong { background: #1D9E75; }
+
+        .pooc-hint { font-size: 11px; color: #88877f; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+        .pooc-hint i { font-size: 12px; }
+        .pooc-hint.ok   { color: #1D9E75; }
+        .pooc-hint.err  { color: #D85A30; }
+        .pooc-hint.warn { color: #BA7517; }
+
+        .pooc-alert {
+            padding: 7px 10px;
+            border-radius: 7px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pooc-alert.error   { background: #FAECE7; color: #993C1D; border: 0.5px solid #F0997B; }
+        .pooc-alert.success { background: #E1F5EE; color: #0F6E56; border: 0.5px solid #5DCAA5; }
+
+        /* Footer */
+        .pooc-modal-footer {
+            padding: 12px 16px;
+            border-top: 0.5px solid rgba(0,0,0,0.1);
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .pooc-btn-cancel {
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Sarabun', sans-serif;
+            cursor: pointer;
+            background: transparent;
+            border: 0.5px solid rgba(0,0,0,0.2);
+            color: #5f5e5a;
+            transition: background 0.15s;
+        }
+        .pooc-btn-cancel:hover { background: #f5f5f3; }
+        .pooc-btn-save {
+            padding: 7px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Sarabun', sans-serif;
+            cursor: pointer;
+            background: #1D9E75;
+            border: none;
+            color: #fff;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.15s;
+        }
+        .pooc-btn-save:hover { opacity: 0.85; }
+        .pooc-btn-save i { font-size: 14px; }
+    </style>
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Member">POOC</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Member">Home</a>
-                            </li>
-                        }
-                    </ul>
 
-                    @* ส่วนแสดงสถานะ Login/Logout *@
-                    <ul class="navbar-nav">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <li class="nav-item">
-                                <span class="nav-link text-primary fw-bold">
-                                    @User.Identity.Name
-                                </span>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Auth" asp-action="ChangePassword">เปลี่ยนรหัสผ่าน</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-danger" asp-controller="Auth" asp-action="Logout">ออกจากระบบ</a>
-                            </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-primary" asp-controller="Auth" asp-action="Login">เข้าสู่ระบบ</a>
-                            </li>
-                        }
-                    </ul>
+    @* ── Navbar ── *@
+    <nav class="pooc-nav">
+        <div class="pooc-nav-main">
+            <a class="pooc-nav-logo" asp-controller="Home" asp-action="Member">
+                <div class="pooc-logo-dot"></div>
+                POOC
+            </a>
+        </div>
+
+
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <div class="pooc-nav-user">
+                <div class="pooc-avatar">@(User.Identity.Name?.Substring(0,1).ToUpper() ?? "A")</div>
+                <div>
+                    <div class="pooc-user-name">@User.Identity.Name</div>
+                    <div class="pooc-user-role">ผู้ดูแลระบบ</div>
                 </div>
+                <div style="width:8px"></div>
+                <button class="pooc-nav-btn" onclick="poocOpenModal()">
+                    <i class="ti ti-key"></i>
+                    เปลี่ยนรหัสผ่าน
+                </button>
+                <a class="pooc-nav-btn danger" asp-controller="Auth" asp-action="Logout">
+                    <i class="ti ti-logout"></i>
+                    ออกจากระบบ
+                </a>
             </div>
-        </nav>
-    </header>
+        }
+        else
+        {
+            <div class="pooc-nav-user">
+                <a class="pooc-nav-btn" asp-controller="Auth" asp-action="Login">
+                    <i class="ti ti-login"></i>
+                    เข้าสู่ระบบ
+                </a>
+            </div>
+        }
+    </nav>
 
-    <div class="container">
-        <main role="main" class="pb-3">
+    @* ── Modal เปลี่ยนรหัสผ่าน ── *@
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <div class="pooc-overlay" id="poocOverlay" onclick="poocOverlayClick(event)">
+            <div class="pooc-modal" id="poocModal">
+
+                <div class="pooc-modal-header">
+                    <div class="pooc-modal-icon"><i class="ti ti-shield-lock"></i></div>
+                    <div class="pooc-modal-title">เปลี่ยนรหัสผ่าน</div>
+                    <button class="pooc-modal-close" onclick="poocCloseModal()" aria-label="ปิด">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+
+                <form id="poocCpForm" asp-controller="Auth" asp-action="ChangePassword" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="pooc-modal-body">
+
+                        <div id="poocAlertBox" style="display:none"></div>
+
+                        <div class="pooc-field">
+                            <label class="pooc-field-label" for="poocCur">รหัสผ่านปัจจุบัน</label>
+                            <div class="pooc-field-wrap">
+                                <input class="pooc-field-input" type="password" id="poocCur" name="currentPassword"
+                                       placeholder="••••••••" autocomplete="current-password" required />
+                                <button type="button" class="pooc-field-eye" onclick="poocToggle('poocCur',this)" aria-label="แสดง/ซ่อน">
+                                    <i class="ti ti-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="pooc-field">
+                            <label class="pooc-field-label" for="poocNew">รหัสผ่านใหม่</label>
+                            <div class="pooc-field-wrap">
+                                <input class="pooc-field-input" type="password" id="poocNew" name="newPassword"
+                                       placeholder="••••••••" autocomplete="new-password" minlength="8"
+                                       oninput="poocStrength(this.value)" required />
+                                <button type="button" class="pooc-field-eye" onclick="poocToggle('poocNew',this)" aria-label="แสดง/ซ่อน">
+                                    <i class="ti ti-eye"></i>
+                                </button>
+                            </div>
+                            <div class="pooc-sbar">
+                                <div class="pooc-seg" id="ps1"></div>
+                                <div class="pooc-seg" id="ps2"></div>
+                                <div class="pooc-seg" id="ps3"></div>
+                                <div class="pooc-seg" id="ps4"></div>
+                                <div class="pooc-seg" id="ps5"></div>
+                            </div>
+                            <div class="pooc-hint" id="poocSlbl">&nbsp;</div>
+                        </div>
+
+                        <div class="pooc-field">
+                            <label class="pooc-field-label" for="poocConf">ยืนยันรหัสผ่านใหม่</label>
+                            <div class="pooc-field-wrap">
+                                <input class="pooc-field-input" type="password" id="poocConf" name="confirmPassword"
+                                       placeholder="••••••••" autocomplete="new-password"
+                                       oninput="poocMatchCheck()" required />
+                                <button type="button" class="pooc-field-eye" onclick="poocToggle('poocConf',this)" aria-label="แสดง/ซ่อน">
+                                    <i class="ti ti-eye"></i>
+                                </button>
+                            </div>
+                            <div id="poocMatchMsg"></div>
+                        </div>
+
+                    </div>
+
+                    <div class="pooc-modal-footer">
+                        <button type="button" class="pooc-btn-cancel" onclick="poocCloseModal()">ยกเลิก</button>
+                        <button type="submit" class="pooc-btn-save">
+                            <i class="ti ti-device-floppy"></i> บันทึก
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    }
+
+    @* ── Main content ── *@
+    <div class="pooc-body">
+        <main role="main">
             @RenderBody()
         </main>
     </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - POOC - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @await RenderSectionAsync("Scripts", required: false)
+
+    <script>
+        function poocOpenModal() {
+            poocResetForm();
+            document.getElementById('poocOverlay').classList.add('open');
+        }
+        function poocCloseModal() {
+            document.getElementById('poocOverlay').classList.remove('open');
+        }
+        function poocOverlayClick(e) {
+            if (e.target === document.getElementById('poocOverlay')) poocCloseModal();
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') poocCloseModal();
+        });
+
+        function poocToggle(id, btn) {
+            var inp = document.getElementById(id);
+            var show = inp.type === 'password';
+            inp.type = show ? 'text' : 'password';
+            btn.querySelector('i').className = show ? 'ti ti-eye-off' : 'ti ti-eye';
+        }
+
+        function poocStrength(val) {
+            var sc = 0;
+            if (val.length >= 8) sc++;
+            if (/[A-Z]/.test(val)) sc++;
+            if (/[0-9]/.test(val)) sc++;
+            if (/[^A-Za-z0-9]/.test(val)) sc++;
+            if (val.length >= 12) sc++;
+            var cls = sc <= 2 ? 'weak' : sc <= 3 ? 'medium' : 'strong';
+            for (var i = 1; i <= 5; i++) {
+                document.getElementById('ps' + i).className = 'pooc-seg' + (i <= sc ? ' ' + cls : '');
+            }
+            var lbl = document.getElementById('poocSlbl');
+            lbl.className = 'pooc-hint' + (cls === 'weak' ? ' err' : cls === 'medium' ? ' warn' : ' ok');
+            lbl.innerHTML = !val ? '&nbsp;'
+                : cls === 'weak'   ? '<i class="ti ti-alert-circle"></i>รหัสผ่านอ่อนแอ'
+                : cls === 'medium' ? '<i class="ti ti-info-circle"></i>รหัสผ่านปานกลาง'
+                :                    '<i class="ti ti-circle-check"></i>รหัสผ่านแข็งแกร่ง';
+            poocMatchCheck();
+        }
+
+        function poocMatchCheck() {
+            var n = document.getElementById('poocNew').value;
+            var c = document.getElementById('poocConf').value;
+            var el = document.getElementById('poocMatchMsg');
+            if (!c) { el.innerHTML = ''; return; }
+            el.innerHTML = n === c
+                ? '<div class="pooc-hint ok"><i class="ti ti-circle-check"></i>รหัสผ่านตรงกัน</div>'
+                : '<div class="pooc-hint err"><i class="ti ti-alert-circle"></i>รหัสผ่านไม่ตรงกัน</div>';
+        }
+
+        function poocResetForm() {
+            ['poocCur', 'poocNew', 'poocConf'].forEach(function(id) {
+                var inp = document.getElementById(id);
+                inp.value = '';
+                inp.type = 'password';
+                var ico = inp.parentElement.querySelector('.pooc-field-eye i');
+                if (ico) ico.className = 'ti ti-eye';
+            });
+            for (var i = 1; i <= 5; i++) document.getElementById('ps' + i).className = 'pooc-seg';
+            document.getElementById('poocSlbl').innerHTML = '&nbsp;';
+            document.getElementById('poocMatchMsg').innerHTML = '';
+            document.getElementById('poocAlertBox').style.display = 'none';
+        }
+
+        document.getElementById('poocCpForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var form = this;
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                var box = document.getElementById('poocAlertBox');
+                box.style.display = 'flex';
+                if (res.success) {
+                    box.className = 'pooc-alert success';
+                    box.innerHTML = '<i class="ti ti-circle-check"></i>' + (res.message || 'เปลี่ยนรหัสผ่านสำเร็จ');
+                    setTimeout(poocCloseModal, 1800);
+                } else {
+                    box.className = 'pooc-alert error';
+                    box.innerHTML = '<i class="ti ti-alert-circle"></i>' + (res.message || 'เกิดข้อผิดพลาด');
+                }
+            })
+            .catch(function() { form.submit(); });
+        });
+    </script>
+
 </body>
 </html>

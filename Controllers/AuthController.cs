@@ -34,8 +34,7 @@ public class AuthController : Controller
 
             var claims = new List<Claim>
             {
-                // จุดสำคัญ: ตัวนี้จะกลายเป็น GetCurrentUserId() ใน Controller อื่นๆ
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), 
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.FullName)
             };
 
@@ -52,6 +51,7 @@ public class AuthController : Controller
         ViewBag.Error = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
         return View("Index");
     }
+
     [Authorize]
     [HttpGet]
     public IActionResult ChangePassword()
@@ -64,22 +64,29 @@ public class AuthController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult ChangePassword(string currentPassword, string newPassword, string confirmPassword)
     {
+        // ถ้าเรียกจาก AJAX modal ให้ตอบกลับเป็น JSON
+        bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
         {
+            if (isAjax) return Json(new { success = false, message = "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร" });
             ViewBag.Error = "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร";
             return View();
         }
 
         if (newPassword != confirmPassword)
         {
+            if (isAjax) return Json(new { success = false, message = "ยืนยันรหัสผ่านใหม่ไม่ตรงกัน" });
             ViewBag.Error = "ยืนยันรหัสผ่านใหม่ไม่ตรงกัน";
             return View();
         }
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var user = _context.Users.FirstOrDefault(u => u.Id.ToString() == userId);
+
         if (user == null || !PasswordHashService.VerifyPassword(currentPassword, user.Password))
         {
+            if (isAjax) return Json(new { success = false, message = "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
             ViewBag.Error = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
             return View();
         }
@@ -88,9 +95,11 @@ public class AuthController : Controller
         AddAuditLog(user.Id.ToString(), "ChangePassword", "User", user.Id, "เปลี่ยนรหัสผ่านสำเร็จ");
         _context.SaveChanges();
 
+        if (isAjax) return Json(new { success = true, message = "เปลี่ยนรหัสผ่านสำเร็จ" });
         ViewBag.Success = "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว";
         return View();
     }
+
     [Authorize]
     public async Task<IActionResult> Logout()
     {
@@ -101,6 +110,7 @@ public class AuthController : Controller
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction("Login");
     }
+
     private void AddAuditLog(string userId, string action, string entityName, int? entityId, string detail)
     {
         _context.AuditLogs.Add(new AuditLog
