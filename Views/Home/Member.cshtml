@@ -95,10 +95,10 @@
     <div class="db-tabs">
         <a class="db-tab @(ViewContext.RouteData.Values["action"]?.ToString() == "Member" ? "active" : "")"
            asp-controller="Home" asp-action="Member">สมาชิก</a>
+        <a class="db-tab @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounting" ? "active" : "")"
+           asp-controller="Accounting" asp-action="Index">เอกสารและบัญชี</a>
         <a class="db-tab @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")"
            asp-controller="Home" asp-action="Dashboard">ภาพรวม</a>
-        <a class="db-tab @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounting" ? "active" : "")"
-       asp-controller="Accounting" asp-action="Index">เอกสารและบัญชี</a>
     </div>
 
     <!-- HEADER -->
