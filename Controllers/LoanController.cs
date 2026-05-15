@@ -603,7 +603,7 @@ public class LoanController : Controller
                         RemainingPayment = GetRemainingPayment(d),
                         d.IsPaid,
                         d.PaidDate,
-                        DueDate = dueDate.ToString("yyyy-MM-dd"),
+                        DueDate = dueDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
                         IsOverdue = isOverdue,
                         MonthsLate = monthsLate,
                         Penalty = penalty

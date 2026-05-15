@@ -638,7 +638,9 @@ function loadLoanHistory(memberId) {
             </td></tr>`;
  
             loan.loanDetails.forEach(d => {
-                const dueDateStr = new Date(d.dueDate).toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'});
+                const [y, m, day] = d.dueDate.split('-');
+                const thMonths = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+                const dueDateStr = `${parseInt(day)} ${thMonths[parseInt(m)]} ${parseInt(y) + 543}`;
  
                 let rowStyle = '';
                 let overdueTag = '';

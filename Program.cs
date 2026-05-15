@@ -25,6 +25,11 @@ builder.Services.AddControllersWithViews();
 
 QuestPDF.Settings.License = LicenseType.Community;
 
+// บังคับให้ทั้ง app ใช้ InvariantCulture — ป้องกัน DateTime format เป็น th-TH
+var invariantCulture = System.Globalization.CultureInfo.InvariantCulture;
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = invariantCulture;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = invariantCulture;
+
 var app = builder.Build();
 
 // Middleware
