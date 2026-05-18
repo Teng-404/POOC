@@ -104,6 +104,7 @@ using (var scope = app.Services.CreateScope())
     DatabaseInitializer.EnsureColumn(context, "Loans", "ApprovedDate", "TEXT NULL");
     DatabaseInitializer.EnsureColumn(context, "Loans", "ApprovedBy", "TEXT NULL");
     DatabaseInitializer.EnsureColumn(context, "LoanDetails", "PaidAmount", "REAL NOT NULL DEFAULT 0");
+    DatabaseInitializer.EnsureColumn(context, "LoanDetails", "PenaltyPaid", "REAL NOT NULL DEFAULT 0");
     context.Database.ExecuteSqlRaw("UPDATE LoanDetails SET PaidAmount = Payment WHERE IsPaid = 1 AND PaidAmount = 0");
 
     if (!context.SystemSettings.Any(x => x.Key == "PenaltyRate"))

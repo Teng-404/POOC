@@ -1,6 +1,6 @@
 ﻿@model POOC.Models.MemberViewModel
 @{
-    ViewData["Title"] = "Member";
+    ViewData["Title"] = "สมาชิก";
 }
 
 <style>
@@ -655,20 +655,21 @@ function loadLoanHistory(memberId) {
                 const paidInfo = d.paidAmount > 0 && !d.isPaid
                     ? `<div style="font-size:10px; color:#92400e; margin-top:2px;">จ่ายแล้ว ฿${d.paidAmount.toFixed(2)} / เหลือ ฿${d.remainingPayment.toFixed(2)}</div>`
                     : '';
-                const paymentDisabled = (loan.status !== 'Active' && loan.status !== 'PartialPaid') ? 'disabled title="ต้องอนุมัติเงินกู้ก่อน"' : '';
+                const paymentDisabled = !['Active', 'PartialPaid', 'Overdue'].includes(loan.status) ? 'disabled title="ต้องอนุมัติเงินกู้ก่อน"' : '';
+                const pen = d.penalty ? d.penalty.toFixed(2) : '0';
                 const statusContent = d.isPaid
                     ? `<span class="badge-paid">จ่ายแล้ว</span>
-                       <button class="btn-cancel-pay" onclick="confirmCancelPay(${d.id})">
-                           <i class="bi bi-x-circle"></i> ยกเลิก</button>`
+                    <button class="btn-cancel-pay" onclick="confirmCancelPay(${d.id})">
+                        <i class="bi bi-x-circle"></i> ยกเลิก</button>`
                     : d.paidAmount > 0
                         ? `<span class="badge-partial">ชำระบางส่วน</span>
-                           ${paidInfo}
-                           <button class="btn-pay" ${paymentDisabled} onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)})">ชำระเพิ่ม</button>`
+                        ${paidInfo}
+                        <button class="btn-pay" ${paymentDisabled} onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)}, ${pen})">ชำระเพิ่ม</button>`
                     : d.isOverdue
-                        ? `<button class="btn-pay" ${paymentDisabled} style="background:#fff0f0; border-color:#fca5a5; color:#dc2626;" onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)})">
-                               <i class="bi bi-exclamation-circle"></i> จ่ายเงิน
-                           </button>`
-                        : `<button class="btn-pay" ${paymentDisabled} onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)})">จ่ายเงิน</button>`;
+                        ? `<button class="btn-pay" ${paymentDisabled} style="background:#fff0f0; border-color:#fca5a5; color:#dc2626;" onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)}, ${pen})">
+                            <i class="bi bi-exclamation-circle"></i> จ่ายเงิน
+                        </button>`
+                        : `<button class="btn-pay" ${paymentDisabled} onclick="payMoney(${d.id}, ${d.remainingPayment.toFixed(2)}, ${pen})">จ่ายเงิน</button>`;
  
                 html += `<tr style="${rowStyle}">
                     <td>${d.installment}</td>
@@ -845,32 +846,46 @@ function closeLoanEarly(id) {
     });
 }
 
-function payMoney(id, remainingPayment) {
+function payMoney(id, remainingPayment, penalty = 0) {
+    const totalDue = Number(remainingPayment) + Number(penalty);
     Swal.fire({
         title: 'บันทึกการชำระเงิน',
-        text: `ยอดคงเหลืองวดนี้ ฿${Number(remainingPayment).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
-        icon: 'question', input: 'number',
-        inputValue: Number(remainingPayment).toFixed(2),
-        inputAttributes: { min: 0.01, max: remainingPayment, step: 0.01 },
+        html: penalty > 0
+            ? `ยอดงวด ฿${Number(remainingPayment).toFixed(2)} + ค่าปรับ ฿${Number(penalty).toFixed(2)}<br><b>รวมต้องชำระ ฿${totalDue.toFixed(2)}</b>`
+            : `ยอดคงเหลืองวดนี้ ฿${Number(remainingPayment).toFixed(2)}`,
+        input: 'number',
+        inputValue: totalDue.toFixed(2),
+        inputAttributes: { min: 0.01, max: totalDue, step: 0.01 },
         showCancelButton: true, confirmButtonColor: '#185FA5',
         confirmButtonText: 'บันทึกชำระ', cancelButtonText: 'ยกเลิก',
         inputValidator: value => {
             const amount = parseFloat(value);
             if (isNaN(amount) || amount <= 0) return 'กรุณาระบุยอดชำระให้ถูกต้อง';
-            if (amount > Number(remainingPayment) + 0.01) return 'ยอดชำระเกินยอดคงเหลืองวดนี้';
+            if (amount > totalDue + 0.01) return 'ยอดชำระเกินยอดรวมที่ต้องชำระ';
         }
     }).then(result => {
-        if (result.isConfirmed) {
-            fetch('/Loan/PayInstallment', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ detailId: id, amount: parseFloat(result.value) })
+        if (!result.isConfirmed) return;
+        const enteredAmount = parseFloat(result.value);
+        // แยกยอดงวดกับค่าปรับ: ถ้าจ่ายไม่ครบค่าปรับ ให้หักค่าปรับก่อน
+        const penaltyPaid   = Math.min(penalty, enteredAmount);
+        const installmentPay = Math.max(0, enteredAmount - penaltyPaid);
+        fetch('/Loan/PayInstallment', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                detailId: id,
+                amount: installmentPay,
+                penaltyAmount: penaltyPaid
             })
-            .then(res => res.json())
-            .then(res => {
-                if (res.success) { Swal.fire('สำเร็จ', 'บันทึกการจ่ายเงินแล้ว', 'success'); loadLoanHistory(document.getElementById('loanMemberId').value); }
-                else Swal.fire('ผิดพลาด', res.message || 'เกิดข้อผิดพลาด', 'error');
-            });
-        }
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                Swal.fire('สำเร็จ', 'บันทึกการจ่ายเงินแล้ว', 'success');
+                loadLoanHistory(document.getElementById('loanMemberId').value);
+            } else {
+                Swal.fire('ผิดพลาด', res.message || 'เกิดข้อผิดพลาด', 'error');
+            }
+        });
     });
 }
 

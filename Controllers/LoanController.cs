@@ -323,9 +323,10 @@ public class LoanController : Controller
         detail.PaidAmount = Math.Round(detail.PaidAmount + payAmount, 2);
         detail.IsPaid = GetRemainingPayment(detail) <= 0.01;
         detail.PaidDate = DateTime.Now;
-        RefreshLoanStatus(detail.Loan);
+        detail.PenaltyPaid = Math.Round(detail.PenaltyPaid + model.PenaltyAmount, 2);
         
-        AddAuditLog("PayInstallment", "LoanDetail", detail.Id, $"ชำระงวดที่ {detail.Installment} LoanId={detail.LoanId} จำนวน {payAmount:N2} บาท");
+        AddAuditLog("PayInstallment", "LoanDetail", detail.Id, $"ชำระงวดที่ {detail.Installment} LoanId={detail.LoanId} " + $"จำนวน {payAmount:N2} บาท ค่าปรับ {model.PenaltyAmount:N2} บาท");
+        RefreshLoanStatus(detail.Loan);
         _context.SaveChanges();
         return Json(new { success = true });
     }

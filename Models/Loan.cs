@@ -37,7 +37,7 @@ namespace POOC.Models
         public bool IsPaid { get; set; } = false; 
         public double PaidAmount { get; set; } = 0;
         public DateTime? PaidDate { get; set; }    
-        
+        public double PenaltyPaid { get; set; } = 0;
         [JsonIgnore]
         public Loan? Loan { get; set; }
     }
@@ -67,6 +67,7 @@ namespace POOC.Models
     {
         public int DetailId { get; set; }
         public double? Amount { get; set; }
+        public double PenaltyAmount { get; set; }
     }
     public class LoanActionRequest
     {
