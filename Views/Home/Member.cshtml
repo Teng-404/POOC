@@ -152,17 +152,20 @@
             </p>
             <p class="db-subtitle">ทั้งหมด @(Model.Members?.Count ?? 0) คน</p>
         </div>
-        <div style="display:flex; gap:8px;">
-            <button class="btn-add" style="background:#059669;" onclick="exportExcel()">
-                <i class="bi bi-file-earmark-excel"></i> Export Excel
-            </button>
-            <button class="btn-add" onclick="toggleAddForm()">
-                <i class="bi bi-plus-lg"></i> เพิ่มสมาชิก
-            </button>
-            <button class="btn-search-toggle" id="btnSearchToggle" onclick="toggleLoanSearch()">
-                <i class="bi bi-search"></i> ค้นหาสัญญา
-            </button>
-        </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="pooc-nav-btn" onclick="exportExcel()">
+                    <i class="ti ti-table-export"></i>
+                    Export Excel
+                </button>
+                <button class="pooc-nav-btn" onclick="toggleAddForm()">
+                    <i class="ti ti-user-plus"></i>
+                    เพิ่มสมาชิก
+                </button>
+                <button class="pooc-nav-btn" id="btnSearchToggle" onclick="toggleLoanSearch()">
+                    <i class="ti ti-file-search"></i>
+                    ค้นหาสัญญา
+                </button>
+            </div>
     </div>
 
     <!-- Search Loan Panel -->
