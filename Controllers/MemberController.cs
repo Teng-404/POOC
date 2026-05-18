@@ -366,4 +366,49 @@ public class MemberController : Controller
             Detail = detail
         });
     }
+    [HttpPost]
+    public IActionResult ImportMembers([FromBody] List<ImportMemberRow> rows)
+    {
+        if (rows == null || !rows.Any())
+            return Json(new { success = false, message = "ไม่มีข้อมูล" });
+
+        int added = 0, skipped = 0;
+        var errors = new List<string>();
+
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrWhiteSpace(row.FirstName) || string.IsNullOrWhiteSpace(row.LastName))
+            { skipped++; continue; }
+
+            bool dup = _context.Members.IgnoreQueryFilters()
+                .Any(m => !m.IsDeleted && m.FirstName == row.FirstName && m.LastName == row.LastName);
+
+            if (dup) { skipped++; errors.Add($"{row.FirstName} {row.LastName} ซ้ำ"); continue; }
+
+            _context.Members.Add(new Member {
+                FirstName = row.FirstName,
+                LastName  = row.LastName,
+                Role      = row.Role ?? "สมาชิก",
+                Phone     = row.Phone,
+                CitizenId = row.CitizenId,
+                Address   = row.Address,
+                OwnerId   = GetCurrentUserId()
+            });
+            added++;
+        }
+
+        AddAuditLog("Import", "Member", null, $"Import สมาชิก {added} ราย, ข้าม {skipped} ราย");
+        _context.SaveChanges();
+        return Json(new { success = true, added, skipped, errors });
+    }
+
+    public class ImportMemberRow
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName  { get; set; } = "";
+        public string? Role      { get; set; }
+        public string? Phone     { get; set; }
+        public string? CitizenId { get; set; }
+        public string? Address   { get; set; }
+    }
 }

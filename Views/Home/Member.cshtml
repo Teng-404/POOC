@@ -117,7 +117,6 @@
     /* status badges */
     .badge-active  { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #eff6ff; color: #185FA5; }
     .badge-overdue { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #fff0f0; color: #dc2626; }
-    .badge-overdue { background:#fff0f0; color:#dc2626; border:1px solid #fca5a5; }
     .btn-search-toggle { padding: 7px 14px; font-size: 13px; font-weight: 500; background: #fff; color: #374151; border: 0.5px solid #e5e7eb; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
     .btn-search-toggle:hover { background: #f9fafb; }
     .btn-search-toggle.active { background: #eff6ff; color: #185FA5; border-color: #bfdbfe; }
@@ -153,11 +152,17 @@
             </p>
             <p class="db-subtitle">ทั้งหมด @(Model.Members?.Count ?? 0) คน</p>
         </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button class="pooc-nav-btn" onclick="exportExcel()">
                     <i class="ti ti-table-export"></i>
                     Export Excel
                 </button>
+                <label class="pooc-nav-btn" style="cursor:pointer; margin:0;">
+                    <i class="ti ti-table-import"></i>
+                    Import Excel
+                    <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none;"
+                           onchange="importMembers(this)" />
+                </label>
                 <button class="pooc-nav-btn" onclick="toggleAddForm()">
                     <i class="ti ti-user-plus"></i>
                     เพิ่มสมาชิก
@@ -844,7 +849,7 @@ function loadLoanHistory(memberId) {
                 const paidInfo = d.paidAmount > 0 && !d.isPaid
                     ? `<div style="font-size:10px; color:#92400e; margin-top:2px;">จ่ายแล้ว ฿${d.paidAmount.toFixed(2)} / เหลือ ฿${d.remainingPayment.toFixed(2)}</div>`
                     : '';
-                const paymentDisabled = !['Active','PartialPaid','Overdue'].includes(loan.status) ? 'disabled title="ต้องอนุมัติเงินกู้ก่อน"' : '';
+                const paymentDisabled = !['Active', 'PartialPaid', 'Overdue'].includes(loan.status) ? 'disabled title="ต้องอนุมัติเงินกู้ก่อน"' : '';
                 const pen = d.penalty ? d.penalty.toFixed(2) : '0';
                 const statusContent = d.isPaid
                     ? `<span class="badge-paid">จ่ายแล้ว</span>
@@ -1122,6 +1127,70 @@ async function exportExcel() {
         Swal.fire('สำเร็จ', 'ดาวน์โหลด Excel เรียบร้อย', 'success');
     } catch(e) {
         Swal.fire('ผิดพลาด', 'Export ไม่สำเร็จ: ' + e.message, 'error');
+    }
+}
+
+async function importMembers(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+
+    try {
+        if (!window.XLSX) {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                s.onload = resolve; s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        const data = await file.arrayBuffer();
+        const wb   = XLSX.read(data);
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+        if (!rows.length) {
+            Swal.fire('ไม่พบข้อมูล', 'ไฟล์ว่างเปล่าหรือไม่มีแถวข้อมูล', 'warning');
+            return;
+        }
+
+        const mapped = rows.map(r => ({
+            FirstName: r['ชื่อ']       ?? r['FirstName'] ?? '',
+            LastName:  r['นามสกุล']    ?? r['LastName']  ?? '',
+            Role:      r['อาชีพ']      ?? r['Role']      ?? 'สมาชิก',
+            Phone:     r['เบอร์โทร']   ?? r['Phone']     ?? '',
+            CitizenId: r['เลขบัตร']    ?? r['CitizenId'] ?? '',
+            Address:   r['ที่อยู่']    ?? r['Address']   ?? '',
+        }));
+
+        const valid   = mapped.filter(r => r.FirstName && r.LastName);
+        const skipped = mapped.length - valid.length;
+
+        const confirm = await Swal.fire({
+            title: `พบข้อมูล ${mapped.length} แถว`,
+            html: `นำเข้าได้ <b>${valid.length}</b> ราย${skipped ? ` · ข้าม <b>${skipped}</b> ราย (ชื่อ-นามสกุลไม่ครบ)` : ''}`,
+            icon: 'question', showCancelButton: true,
+            confirmButtonColor: '#7c3aed',
+            confirmButtonText: 'นำเข้า', cancelButtonText: 'ยกเลิก'
+        });
+        if (!confirm.isConfirmed) return;
+
+        Swal.fire({ title: 'กำลังนำเข้า...', didOpen: () => Swal.showLoading() });
+
+        const res = await fetch('/Member/ImportMembers', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(valid)
+        }).then(r => r.json());
+
+        if (res.success) {
+            let msg = `เพิ่มสำเร็จ ${res.added} ราย`;
+            if (res.skipped) msg += ` · ข้าม ${res.skipped} ราย (ชื่อซ้ำหรือข้อมูลไม่ครบ)`;
+            Swal.fire('นำเข้าสำเร็จ', msg, 'success').then(() => location.reload());
+        } else {
+            Swal.fire('ผิดพลาด', res.message || 'ไม่สามารถนำเข้าได้', 'error');
+        }
+    } catch(e) {
+        Swal.fire('ผิดพลาด', 'อ่านไฟล์ไม่สำเร็จ: ' + e.message, 'error');
     }
 }
 </script>
