@@ -98,6 +98,7 @@ public class LoanController : Controller
         "Pending" => "รออนุมัติ",
         "Active" => "อนุมัติแล้ว",
         "PartialPaid" => "ชำระบางส่วน",
+        "Overdue"     => "ผิดนัดชำระ",
         "Closed" => "ปิดบัญชี",
         "Cancelled" => "ยกเลิก",
         "Rejected" => "ไม่อนุมัติ",
@@ -106,13 +107,29 @@ public class LoanController : Controller
 
     private void RefreshLoanStatus(Loan loan)
     {
-        if (loan.Status == "Cancelled" || loan.Status == "Rejected" || loan.Status == "Pending")
+        if (loan.Status is "Cancelled" or "Rejected" or "Pending")
             return;
 
-        var totalDue = GetLoanTotalDue(loan);
+        var totalDue  = GetLoanTotalDue(loan);
         var paidAmount = GetLoanPaidAmount(loan);
-        loan.Status = paidAmount >= totalDue - 0.01 ? "Closed" : "Active";
-        loan.ClosedDate = loan.Status == "Closed" ? DateTime.Now : null;
+
+        if (paidAmount >= totalDue - 0.01)
+        {
+            loan.Status = "Closed";
+            loan.ClosedDate = DateTime.Now;
+        }
+        else
+        {
+            // เช็ค overdue จาก LoanDetail ที่ยังไม่จ่ายและเลย DueDate
+            var today = DateTime.Now.Date;
+            var startDate = new DateTime(loan.CreatedDate.Year, loan.CreatedDate.Month, 1).AddMonths(1);
+            bool hasOverdue = loan.LoanDetails
+                .Where(d => !d.IsPaid)
+                .Any(d => startDate.AddMonths(d.Installment - 1) < today);
+
+            loan.Status = hasOverdue ? "Overdue" : (paidAmount > 0 ? "PartialPaid" : "Active");
+            loan.ClosedDate = null;
+        }
     }
 
     [HttpGet]

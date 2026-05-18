@@ -117,6 +117,7 @@
     /* status badges */
     .badge-active  { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #eff6ff; color: #185FA5; }
     .badge-overdue { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #fff0f0; color: #dc2626; }
+    .badge-overdue { background:#fff0f0; color:#dc2626; border:1px solid #fca5a5; }
     .btn-search-toggle { padding: 7px 14px; font-size: 13px; font-weight: 500; background: #fff; color: #374151; border: 0.5px solid #e5e7eb; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
     .btn-search-toggle:hover { background: #f9fafb; }
     .btn-search-toggle.active { background: #eff6ff; color: #185FA5; border-color: #bfdbfe; }
@@ -843,7 +844,7 @@ function loadLoanHistory(memberId) {
                 const paidInfo = d.paidAmount > 0 && !d.isPaid
                     ? `<div style="font-size:10px; color:#92400e; margin-top:2px;">จ่ายแล้ว ฿${d.paidAmount.toFixed(2)} / เหลือ ฿${d.remainingPayment.toFixed(2)}</div>`
                     : '';
-                const paymentDisabled = !['Active', 'PartialPaid', 'Overdue'].includes(loan.status) ? 'disabled title="ต้องอนุมัติเงินกู้ก่อน"' : '';
+                const paymentDisabled = !['Active','PartialPaid','Overdue'].includes(loan.status) ? 'disabled title="ต้องอนุมัติเงินกู้ก่อน"' : '';
                 const pen = d.penalty ? d.penalty.toFixed(2) : '0';
                 const statusContent = d.isPaid
                     ? `<span class="badge-paid">จ่ายแล้ว</span>
