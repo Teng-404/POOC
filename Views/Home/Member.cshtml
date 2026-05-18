@@ -83,6 +83,46 @@
     .balance-label  { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
     .balance-amount { font-size: 22px; font-weight: 500; color: #185FA5; }
 
+    /* ── Search Loan Panel ── */
+    .loan-search-panel { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+    .loan-search-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .loan-search-head-icon { font-size: 15px; color: #185FA5; }
+    .loan-search-head-title { font-size: 13px; font-weight: 500; color: #111827; }
+    .loan-search-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .loan-search-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; min-height: 0; }
+    .loan-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; background: #eff6ff; color: #185FA5; border: 0.5px solid #bfdbfe; }
+    .loan-chip-x { cursor: pointer; opacity: .6; font-size: 10px; }
+    .loan-chip-x:hover { opacity: 1; }
+    .loan-search-clear { font-size: 12px; color: #6b7280; background: none; border: 0.5px solid #e5e7eb; border-radius: 6px; cursor: pointer; padding: 5px 10px; }
+    .loan-search-clear:hover { background: #f3f4f6; color: #111827; }
+    .loan-search-divider { border: none; border-top: 0.5px solid #f3f4f6; margin: 10px 0; }
+    .loan-search-meta { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+    .loan-search-meta b { color: #111827; }
+    .loan-search-empty { text-align: center; padding: 24px; color: #9ca3af; font-size: 13px; }
+
+    /* search result table */
+    .loan-search-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .loan-search-table thead tr { background: #f9fafb; }
+    .loan-search-table th { padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 500; color: #6b7280; border-bottom: 0.5px solid #e5e7eb; white-space: nowrap; }
+    .loan-search-table td { padding: 10px 12px; border-bottom: 0.5px solid #f3f4f6; vertical-align: middle; }
+    .loan-search-table tbody tr:last-child td { border-bottom: none; }
+    .loan-search-table tbody tr:hover td { background: #fafafa; }
+    .loan-search-table .overdue-row td { background: #fff8f8; }
+    .loan-search-table .overdue-row:hover td { background: #fff0f0; }
+
+    /* progress bar mini */
+    .prog-mini { height: 4px; background: #f3f4f6; border-radius: 2px; overflow: hidden; width: 72px; margin-top: 3px; }
+    .prog-mini-fill { height: 100%; border-radius: 2px; }
+
+    /* status badges */
+    .badge-active  { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #eff6ff; color: #185FA5; }
+    .badge-overdue { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #fff0f0; color: #dc2626; }
+    .btn-search-toggle { padding: 7px 14px; font-size: 13px; font-weight: 500; background: #fff; color: #374151; border: 0.5px solid #e5e7eb; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-search-toggle:hover { background: #f9fafb; }
+    .btn-search-toggle.active { background: #eff6ff; color: #185FA5; border-color: #bfdbfe; }
+    .btn-view-loan { font-size: 11px; padding: 3px 9px; border-radius: 6px; border: 0.5px solid #bfdbfe; background: #eff6ff; color: #185FA5; cursor: pointer; white-space: nowrap; }
+    .btn-view-loan.overdue { border-color: #fca5a5; background: #fff0f0; color: #dc2626; }
+
     @@media (max-width: 768px) {
         .action-group { flex-wrap: wrap; }
         .toolbar { flex-wrap: wrap; }
@@ -119,6 +159,41 @@
             <button class="btn-add" onclick="toggleAddForm()">
                 <i class="bi bi-plus-lg"></i> เพิ่มสมาชิก
             </button>
+            <button class="btn-search-toggle" id="btnSearchToggle" onclick="toggleLoanSearch()">
+                <i class="bi bi-search"></i> ค้นหาสัญญา
+            </button>
+        </div>
+    </div>
+
+    <!-- Search Loan Panel -->
+    <div class="loan-search-panel" id="loanSearchPanel" style="display:none;">
+        <div class="loan-search-head">
+            <i class="bi bi-search loan-search-head-icon"></i>
+            <span class="loan-search-head-title">ค้นหาสัญญาข้ามสมาชิก</span>
+        </div>
+        <div class="loan-search-row">
+            <input id="loanSearchKw" class="form-control form-control-sm" style="max-width:230px;"
+                placeholder="ชื่อสมาชิก / ผู้ค้ำประกัน..." oninput="searchLoans()" />
+            <select id="loanSearchStatus" class="form-select form-select-sm" style="max-width:155px;"
+                    onchange="searchLoans()">
+                <option value="All">ทุกสถานะ</option>
+                <option value="Pending">รออนุมัติ</option>
+                <option value="Active">อนุมัติแล้ว</option>
+                <option value="PartialPaid">ชำระบางส่วน</option>
+                <option value="Overdue">ผิดนัดชำระ</option>
+                <option value="Closed">ปิดบัญชี</option>
+            </select>
+            <button class="loan-search-clear" onclick="clearLoanSearch()">
+                <i class="bi bi-x-lg"></i> ล้าง
+            </button>
+        </div>
+        <div class="loan-search-chips" id="loanSearchChips"></div>
+        <hr class="loan-search-divider" />
+        <div id="loanSearchResult">
+            <div class="loan-search-empty">
+                <i class="bi bi-search" style="font-size:22px; display:block; margin-bottom:6px; opacity:.3;"></i>
+                พิมพ์ชื่อหรือเลือกสถานะเพื่อค้นหา
+            </div>
         </div>
     </div>
 
@@ -462,6 +537,116 @@ function searchMember() {
             document.getElementById('memberTableBody').innerHTML = html;
         });
     }, 300);
+}
+
+function toggleLoanSearch() {
+    const panel = document.getElementById('loanSearchPanel');
+    const btn   = document.getElementById('btnSearchToggle');
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'block';
+    btn.classList.toggle('active', !isOpen);
+    if (!isOpen) document.getElementById('loanSearchKw').focus();
+}
+
+function clearLoanSearch() {
+    document.getElementById('loanSearchKw').value = '';
+    document.getElementById('loanSearchStatus').value = 'All';
+    document.getElementById('loanSearchChips').innerHTML = '';
+    document.getElementById('loanSearchResult').innerHTML =
+        '<div class="loan-search-empty"><i class="bi bi-search" style="font-size:22px;display:block;margin-bottom:6px;opacity:.3;"></i>พิมพ์ชื่อหรือเลือกสถานะเพื่อค้นหา</div>';
+}
+
+function updateSearchChips() {
+    const kw = document.getElementById('loanSearchKw').value.trim();
+    const st = document.getElementById('loanSearchStatus');
+    const stText = st.options[st.selectedIndex].text;
+    const stVal  = st.value;
+    let html = '';
+    if (kw)          html += `<span class="loan-chip">${kw} <span class="loan-chip-x" onclick="document.getElementById('loanSearchKw').value='';searchLoans()">✕</span></span>`;
+    if (stVal !== 'All') html += `<span class="loan-chip">${stText} <span class="loan-chip-x" onclick="document.getElementById('loanSearchStatus').value='All';searchLoans()">✕</span></span>`;
+    document.getElementById('loanSearchChips').innerHTML = html;
+}
+
+let loanSearchTimer;
+function searchLoans() {
+    clearTimeout(loanSearchTimer);
+    updateSearchChips();
+    const kw = document.getElementById('loanSearchKw').value.trim();
+    const st = document.getElementById('loanSearchStatus').value;
+    if (!kw && st === 'All') {
+        document.getElementById('loanSearchResult').innerHTML =
+            '<div class="loan-search-empty"><i class="bi bi-search" style="font-size:22px;display:block;margin-bottom:6px;opacity:.3;"></i>พิมพ์ชื่อหรือเลือกสถานะเพื่อค้นหา</div>';
+        return;
+    }
+    loanSearchTimer = setTimeout(() => {
+        document.getElementById('loanSearchResult').innerHTML =
+            '<div class="loan-search-empty"><i class="bi bi-arrow-clockwise" style="font-size:18px;display:block;margin-bottom:4px;opacity:.4;"></i>กำลังค้นหา...</div>';
+        fetch(`/Loan/SearchLoans?keyword=${encodeURIComponent(kw)}&status=${st}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data || !data.length) {
+                document.getElementById('loanSearchResult').innerHTML =
+                    '<div class="loan-search-empty"><i class="bi bi-inbox" style="font-size:22px;display:block;margin-bottom:6px;opacity:.3;"></i>ไม่พบสัญญาที่ตรงกัน</div>';
+                return;
+            }
+            const fmt = (n) => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2 });
+            let html = `<div class="loan-search-meta">พบ <b>${data.length}</b> สัญญา</div>
+                <table class="loan-search-table">
+                <thead><tr>
+                    <th>สมาชิก</th><th>วงเงิน</th>
+                    <th>ชำระแล้ว</th><th>คงเหลือ</th>
+                    <th>สถานะ</th><th></th>
+                </tr></thead><tbody>`;
+            data.forEach(x => {
+                const isOverdue = x.status === 'Overdue';
+                const pct = x.amount > 0 ? Math.min(100, Math.round(x.paidAmount / x.amount * 100)) : 0;
+                const barColor = isOverdue ? '#dc2626' : '#059669';
+                const initials = x.memberName.split(' ').map(p => p[0] ?? '').join('').substring(0,2);
+                const avatarBg = isOverdue ? '#fee2e2' : '#dbeafe';
+                const avatarColor = isOverdue ? '#dc2626' : '#185FA5';
+                let statusHtml = `<span class="badge-${x.status.toLowerCase()}">${x.statusText}</span>`;
+                if (isOverdue) statusHtml += `<div style="font-size:10px;color:#dc2626;margin-top:2px;"><i class="bi bi-exclamation-triangle-fill"></i> ผิดนัด</div>`;
+                html += `<tr class="${isOverdue ? 'overdue-row' : ''}">
+                    <td>
+                        <div class="name-cell">
+                            <div class="avatar-sm" style="background:${avatarBg};color:${avatarColor};">${initials}</div>
+                            <div>
+                                <div>${x.memberName}</div>
+                                <div style="font-size:11px;color:#9ca3af;">สัญญา #${x.id} · ${new Date(x.createdDate).toLocaleDateString('th-TH')}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="font-variant-numeric:tabular-nums;">฿${fmt(x.amount)}</td>
+                    <td>
+                        <div style="color:#059669;font-variant-numeric:tabular-nums;font-weight:500;">฿${fmt(x.paidAmount)}</div>
+                        <div class="prog-mini"><div class="prog-mini-fill" style="width:${pct}%;background:${barColor};"></div></div>
+                    </td>
+                    <td style="color:${x.remaining > 0 ? '#dc2626' : '#6b7280'};font-variant-numeric:tabular-nums;font-weight:500;">฿${fmt(x.remaining)}</td>
+                    <td>${statusHtml}</td>
+                    <td><button class="btn-view-loan ${isOverdue ? 'overdue' : ''}" onclick="openMemberLoanFromSearch(${x.memberId},'${x.memberName}',${x.id})">ดูสัญญา</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('loanSearchResult').innerHTML = html;
+        })
+        .catch(() => {
+            document.getElementById('loanSearchResult').innerHTML =
+                '<div class="loan-search-empty" style="color:#dc2626;">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>';
+        });
+    }, 350);
+}
+
+function openMemberLoanFromSearch(memberId, memberName, loanId) {
+    const parts = memberName.trim().split(' ');
+    const firstName = parts[0] ?? memberName;
+    const lastName  = parts.slice(1).join(' ') ?? '';
+    const modal = new bootstrap.Modal(document.getElementById('loanModal'));
+    document.getElementById('loanMemberId').value = memberId;
+    document.getElementById('loanName').innerText  = memberName;
+    document.getElementById('loanTableBody').innerHTML =
+        '<tr><td colspan="7" class="empty-row" style="padding:20px;"><i class="bi bi-arrow-clockwise"></i> กำลังโหลด...</td></tr>';
+    modal.show();
+    loadLoanHistory(memberId);
 }
 
 function openEdit(id) {

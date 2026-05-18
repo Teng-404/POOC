@@ -630,4 +630,38 @@ public class LoanController : Controller
             Detail = detail
         });
     }
+    [HttpGet]
+    public IActionResult SearchLoans(string? keyword, string? status)
+    {
+        var query = _context.Loans
+            .Include(x => x.Member)
+            .Include(x => x.LoanDetails)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            query = query.Where(x =>
+                x.Member!.FirstName.Contains(keyword) ||
+                x.Member!.LastName.Contains(keyword) ||
+                x.GuarantorName!.Contains(keyword));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && status != "All")
+            query = query.Where(x => x.Status == status);
+
+        var loans = query.OrderByDescending(x => x.Id).Take(100).ToList();
+
+        return Json(loans.Select(x => new {
+            x.Id,
+            MemberName = $"{x.Member?.FirstName} {x.Member?.LastName}",
+            x.Amount,
+            x.Rate,
+            x.Months,
+            x.CreatedDate,
+            Status = GetDisplayStatus(x),
+            StatusText = GetStatusText(GetDisplayStatus(x)),
+            PaidAmount = GetLoanPaidAmount(x),
+            Remaining = GetLoanTotalDue(x) - GetLoanPaidAmount(x)
+        }));
+    }
 }
