@@ -316,14 +316,28 @@
 <body>
 
     @* ── Navbar ── *@
-    <nav class="pooc-nav">
-        <div class="pooc-nav-main">
-            <a class="pooc-nav-logo" asp-controller="Home" asp-action="Member">
-                <div class="pooc-logo-dot"></div>
-                POOC
-            </a>
-        </div>
+    <div class="pooc-nav-main">
+        <a class="pooc-nav-logo" asp-controller="Home" asp-action="Member">
+            <div class="pooc-logo-dot"></div>
+            POOC
+        </a>
 
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a class="pooc-nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")"
+            asp-controller="Home" asp-action="Member">
+                <i class="ti ti-users"></i> สมาชิก
+            </a>
+            <a class="pooc-nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Accounting" ? "active" : "")"
+            asp-controller="Accounting" asp-action="Index">
+                <i class="ti ti-report-money"></i> บัญชี
+            </a>
+            <a class="pooc-nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "User" ? "active" : "")"
+            asp-controller="User" asp-action="Index">
+                <i class="ti ti-shield-lock"></i> ผู้ใช้งาน
+            </a>
+        }
+    </div>
 
         @if (User.Identity?.IsAuthenticated == true)
         {

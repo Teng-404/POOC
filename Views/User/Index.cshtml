@@ -1,0 +1,226 @@
+@{
+    ViewData["Title"] = "จัดการผู้ใช้งาน";
+}
+
+<style>
+    .usr-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .usr-title  { font-size:20px; font-weight:600; color:#1a1a18; }
+    .usr-sub    { font-size:13px; color:#88877f; margin-top:2px; }
+    .usr-table  { width:100%; border-collapse:collapse; font-size:13px; }
+    .usr-table th { background:#f9fafb; padding:10px 12px; text-align:left; font-weight:500; color:#6b7280; border-bottom:1px solid #f3f4f6; }
+    .usr-table td { padding:11px 12px; border-bottom:1px solid #f9fafb; vertical-align:middle; }
+    .usr-table tr:hover td { background:#fafafa; }
+    .usr-badge-admin { background:#E1F5EE; color:#0F6E56; font-size:11px; padding:2px 8px; border-radius:20px; font-weight:500; }
+    .usr-badge-user  { background:#f3f4f6; color:#6b7280; font-size:11px; padding:2px 8px; border-radius:20px; }
+    .btn-add-user { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; background:#0F6E56; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; font-family:'Sarabun',sans-serif; }
+    .btn-add-user:hover { background:#0a5240; }
+    .btn-icon { border:none; background:transparent; cursor:pointer; padding:4px 7px; border-radius:6px; font-size:13px; }
+    .btn-icon:hover { background:#f3f4f6; }
+    .btn-icon.del { color:#dc2626; }
+    .usr-avatar { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#1D9E75,#0F6E56); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:12px; font-weight:600; margin-right:8px; }
+    .empty-state { text-align:center; padding:40px; color:#9ca3af; font-size:13px; }
+</style>
+
+<div class="container mt-4">
+
+    <!-- TABS (ใช้ style เดิม) -->
+    <div class="db-tabs">
+        <a class="db-tab" asp-controller="Home" asp-action="Member">สมาชิก</a>
+        <a class="db-tab" asp-controller="Accounting" asp-action="Index">เอกสารและบัญชี</a>
+        <a class="db-tab" asp-controller="Home" asp-action="Dashboard">ภาพรวม</a>
+        <a class="db-tab active" asp-controller="User" asp-action="Index">ผู้ใช้งาน</a>
+    </div>
+
+    <div class="db-header">
+        <div>
+            <p class="db-title">จัดการผู้ใช้งาน</p>
+            <p class="db-subtitle">เพิ่ม · แก้ไข · ลบบัญชีผู้ดูแลระบบ</p>
+        </div>
+        <button class="btn-add-user" onclick="openAddModal()">
+            <i class="ti ti-user-plus"></i> เพิ่มผู้ใช้งาน
+        </button>
+    </div>
+
+    <!-- TABLE -->
+    <div class="db-card" style="padding:0; overflow:hidden;">
+        <table class="usr-table">
+            <thead>
+                <tr>
+                    <th>ผู้ใช้งาน</th>
+                    <th>Username</th>
+                    <th>สิทธิ์</th>
+                    <th>วันที่สร้าง</th>
+                    <th style="text-align:center;">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody">
+                <tr><td colspan="5" class="empty-state"><i class="ti ti-loader"></i> กำลังโหลด...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL: เพิ่มผู้ใช้ -->
+<div class="pooc-overlay" id="addOverlay" onclick="if(event.target===this)closeAddModal()">
+    <div class="pooc-modal" style="max-width:420px;">
+        <div class="pooc-modal-header">
+            <div class="pooc-modal-icon"><i class="ti ti-user-plus"></i></div>
+            <div class="pooc-modal-title">เพิ่มผู้ใช้งานใหม่</div>
+            <button class="pooc-modal-close" onclick="closeAddModal()"><i class="ti ti-x"></i></button>
+        </div>
+        <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+            <div class="pooc-field">
+                <label class="pooc-field-label">ชื่อ-นามสกุล</label>
+                <input class="pooc-field-input" id="addFullName" type="text" placeholder="ชื่อที่แสดงในระบบ" />
+            </div>
+            <div class="pooc-field">
+                <label class="pooc-field-label">Username <span style="color:#dc2626">*</span></label>
+                <input class="pooc-field-input" id="addUsername" type="text" placeholder="ตัวอักษรและตัวเลขเท่านั้น" />
+            </div>
+            <div class="pooc-field">
+                <label class="pooc-field-label">รหัสผ่าน <span style="color:#dc2626">*</span> <span style="font-weight:400;color:#9ca3af;">(อย่างน้อย 8 ตัว)</span></label>
+                <div class="pooc-field-wrap">
+                    <input class="pooc-field-input" id="addPassword" type="password" placeholder="••••••••" />
+                    <button type="button" class="pooc-field-eye" onclick="toggleVis('addPassword',this)"><i class="ti ti-eye"></i></button>
+                </div>
+            </div>
+            <div id="addAlert" style="display:none;" class="pooc-alert error"></div>
+        </div>
+        <div class="pooc-modal-footer">
+            <button class="pooc-btn-cancel" onclick="closeAddModal()">ยกเลิก</button>
+            <button class="pooc-btn-save" onclick="submitAdd()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Reset รหัสผ่าน -->
+<div class="pooc-overlay" id="resetOverlay" onclick="if(event.target===this)closeResetModal()">
+    <div class="pooc-modal" style="max-width:380px;">
+        <div class="pooc-modal-header">
+            <div class="pooc-modal-icon"><i class="ti ti-key"></i></div>
+            <div class="pooc-modal-title">Reset รหัสผ่าน — <span id="resetUsername"></span></div>
+            <button class="pooc-modal-close" onclick="closeResetModal()"><i class="ti ti-x"></i></button>
+        </div>
+        <div style="padding:16px;">
+            <div class="pooc-field">
+                <label class="pooc-field-label">รหัสผ่านใหม่ <span style="font-weight:400;color:#9ca3af;">(อย่างน้อย 8 ตัว)</span></label>
+                <div class="pooc-field-wrap">
+                    <input class="pooc-field-input" id="resetNewPw" type="password" placeholder="••••••••" />
+                    <button type="button" class="pooc-field-eye" onclick="toggleVis('resetNewPw',this)"><i class="ti ti-eye"></i></button>
+                </div>
+            </div>
+            <div id="resetAlert" style="display:none;margin-top:8px;" class="pooc-alert error"></div>
+        </div>
+        <div class="pooc-modal-footer">
+            <button class="pooc-btn-cancel" onclick="closeResetModal()">ยกเลิก</button>
+            <button class="pooc-btn-save" onclick="submitReset()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let editingResetId = null;
+const currentUserId = '@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value';
+
+// ── โหลดตาราง ──
+async function loadUsers() {
+    const res = await fetch('/User/List');
+    const users = await res.json();
+    const tbody = document.getElementById('userTableBody');
+    if (!users.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">ยังไม่มีผู้ใช้งาน</td></tr>'; return; }
+
+    tbody.innerHTML = users.map(u => {
+        const initial = (u.fullName?.[0] ?? u.username?.[0] ?? '?').toUpperCase();
+        const isAdmin = u.isAdmin;
+        const isSelf  = u.id.toString() === currentUserId;
+        const badge   = isAdmin ? '<span class="usr-badge-admin"><i class="ti ti-shield-check"></i> Admin</span>'
+                                : '<span class="usr-badge-user"><i class="ti ti-user"></i> ผู้ใช้งาน</span>';
+        const date    = new Date(u.createdDate).toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'});
+
+        const delBtn = (!isAdmin && !isSelf)
+            ? `<button class="btn-icon del" onclick="deleteUser(${u.id},'${u.username}')" title="ลบ"><i class="ti ti-trash"></i></button>`
+            : `<button class="btn-icon" style="opacity:0.3;cursor:default;" disabled title="${isAdmin?'ไม่สามารถลบ admin':'ไม่สามารถลบตัวเอง'}"><i class="ti ti-trash"></i></button>`;
+
+        return `<tr>
+            <td><span class="usr-avatar">${initial}</span>${u.fullName || '-'} ${isSelf ? '<span style="font-size:11px;color:#9ca3af;">(คุณ)</span>' : ''}</td>
+            <td style="font-family:monospace;color:#185FA5;">${u.username}</td>
+            <td>${badge}</td>
+            <td style="color:#6b7280;">${date}</td>
+            <td style="text-align:center;">
+                <button class="btn-icon" onclick="openResetModal(${u.id},'${u.username}')" title="Reset รหัสผ่าน"><i class="ti ti-key"></i></button>
+                ${delBtn}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ── เพิ่ม user ──
+function openAddModal() {
+    ['addFullName','addUsername','addPassword'].forEach(id => document.getElementById(id).value = '');
+    setAlert('addAlert', '', false);
+    document.getElementById('addOverlay').classList.add('open');
+}
+function closeAddModal() { document.getElementById('addOverlay').classList.remove('open'); }
+
+async function submitAdd() {
+    const body = { fullName: v('addFullName'), username: v('addUsername'), password: v('addPassword') };
+    if (!body.username || !body.password) { setAlert('addAlert','กรุณากรอก Username และรหัสผ่าน'); return; }
+    const res = await post('/User/Add', body);
+    if (res.success) { closeAddModal(); loadUsers(); Swal.fire('สำเร็จ','เพิ่มผู้ใช้งานแล้ว','success'); }
+    else setAlert('addAlert', res.message);
+}
+
+// ── Reset รหัสผ่าน ──
+function openResetModal(id, username) {
+    editingResetId = id;
+    document.getElementById('resetUsername').textContent = username;
+    document.getElementById('resetNewPw').value = '';
+    setAlert('resetAlert', '', false);
+    document.getElementById('resetOverlay').classList.add('open');
+}
+function closeResetModal() { document.getElementById('resetOverlay').classList.remove('open'); }
+
+async function submitReset() {
+    const pw = v('resetNewPw');
+    if (pw.length < 8) { setAlert('resetAlert','รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'); return; }
+    const res = await post('/User/ResetPassword', { id: editingResetId, newPassword: pw });
+    if (res.success) { closeResetModal(); Swal.fire('สำเร็จ','Reset รหัสผ่านแล้ว','success'); }
+    else setAlert('resetAlert', res.message);
+}
+
+// ── ลบ user ──
+async function deleteUser(id, username) {
+    const { isConfirmed } = await Swal.fire({
+        title: `ลบผู้ใช้ "${username}"?`,
+        text: 'ไม่สามารถกู้คืนได้',
+        icon: 'warning', showCancelButton: true,
+        confirmButtonColor: '#dc2626', confirmButtonText: 'ยืนยันลบ', cancelButtonText: 'ยกเลิก'
+    });
+    if (!isConfirmed) return;
+    const res = await post('/User/Delete', { id });
+    if (res.success) { loadUsers(); Swal.fire('สำเร็จ','ลบผู้ใช้งานแล้ว','success'); }
+    else Swal.fire('ผิดพลาด', res.message, 'error');
+}
+
+// ── Helpers ──
+function v(id) { return document.getElementById(id).value.trim(); }
+async function post(url, body) {
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    return r.json();
+}
+function setAlert(id, msg, show = true) {
+    const el = document.getElementById(id);
+    el.style.display = show ? 'flex' : 'none';
+    el.innerHTML = msg ? `<i class="ti ti-alert-circle"></i> ${msg}` : '';
+}
+function toggleVis(id, btn) {
+    const inp = document.getElementById(id);
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.querySelector('i').className = show ? 'ti ti-eye-off' : 'ti ti-eye';
+}
+
+loadUsers();
+</script>
+}
