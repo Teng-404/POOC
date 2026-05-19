@@ -11,11 +11,12 @@ public class UserController : Controller
     private readonly ApplicationDbContext _context;
     public UserController(ApplicationDbContext context) => _context = context;
     public IActionResult Index()
-{
-    return View();
-}
-
-    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+    {
+        var users = _context.Users
+            .OrderBy(u => u.Id)
+            .ToList();
+        return View(users);
+    }    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
     // GET: รายชื่อ user ทั้งหมด (JSON)
     [HttpGet]
