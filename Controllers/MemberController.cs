@@ -67,6 +67,7 @@ public class MemberController : Controller
 
     // DELETE
     [HttpPost]
+    [IgnoreAntiforgeryToken]
     public IActionResult Delete(int id)
     {
         try
@@ -145,6 +146,7 @@ public class MemberController : Controller
         }});
     }
     [HttpPost]
+    [IgnoreAntiforgeryToken]
     public IActionResult UpdateMember([FromBody] Member model)
     {
         if (model == null) return Json(new { success = false, message = "ไม่ได้รับข้อมูล" });
@@ -188,6 +190,7 @@ public class MemberController : Controller
         });
     }
     [HttpPost]
+    [IgnoreAntiforgeryToken]
     public IActionResult SaveTransaction([FromBody] SavingsRequest req)
     {
         // ตรวจสอบเงินถอนว่าพอไหม
@@ -216,6 +219,7 @@ public class MemberController : Controller
         public string Type { get; set; } = string.Empty;
     }
     [HttpPost]
+    [IgnoreAntiforgeryToken]
     public IActionResult CalculateAnnualInterest([FromBody] InterestRequest req)
     {
         int year = req.Year > 0 ? req.Year : DateTime.Now.Year;
@@ -367,6 +371,7 @@ public class MemberController : Controller
         });
     }
     [HttpPost]
+    [IgnoreAntiforgeryToken]
     public IActionResult ImportMembers([FromBody] List<ImportMemberRow> rows)
     {
         if (rows == null || !rows.Any())

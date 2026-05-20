@@ -140,6 +140,7 @@ public class LoanController : Controller
         return Json(schedule);
     }
     [HttpPost]
+    [IgnoreAntiforgeryToken]
     public IActionResult Create([FromBody] LoanRequest model)
     {
         if (model == null)
@@ -271,6 +272,7 @@ public class LoanController : Controller
         return View("~/Views/Home/Member.cshtml", vm);
     }
     [HttpPost]
+    [IgnoreAntiforgeryToken]
     public IActionResult Delete([FromBody] DeleteRequest model)
     {   
         if (model == null) return Json(new { success = false, message = "ข้อมูลไม่ถูกต้อง" });
