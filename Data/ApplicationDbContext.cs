@@ -85,22 +85,13 @@ namespace POOC.Data
                 .HasIndex(x => x.Key)
                 .IsUnique();
 
-            // Query Filters (multi-user isolation)
-            modelBuilder.Entity<Member>().HasQueryFilter(m =>
-                !m.IsDeleted &&
-                _httpContextAccessor.HttpContext != null &&
-                m.OwnerId == _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
+            // Query Filters (shared data — all users see the same records)
+            modelBuilder.Entity<Member>().HasQueryFilter(m => !m.IsDeleted);
 
-            modelBuilder.Entity<Loan>().HasQueryFilter(l =>
-                !l.IsDeleted &&
-                _httpContextAccessor.HttpContext != null &&
-                l.OwnerId == _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
+            modelBuilder.Entity<Loan>().HasQueryFilter(l => !l.IsDeleted);
 
             modelBuilder.Entity<LoanDetail>().HasQueryFilter(d =>
-                _httpContextAccessor.HttpContext != null &&
-                d.Loan != null &&
-                !d.Loan.IsDeleted &&
-                d.Loan.OwnerId == _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
+                d.Loan != null && !d.Loan.IsDeleted);
         }
     }
 }

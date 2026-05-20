@@ -2,6 +2,7 @@
     var currentUserName = User.Identity?.Name ?? "Admin";
     var currentUserInitial = currentUserName.Length > 0 ? currentUserName.Substring(0, 1).ToUpper() : "A";
     var isUserPage = ViewContext.RouteData.Values["controller"]?.ToString() == "User";
+    var isAdmin = User.FindFirst("IsAdmin")?.Value == "true";
 }
 <!DOCTYPE html>
 <html lang="th">
@@ -426,18 +427,24 @@
                         <div class="pooc-drop-avatar">@currentUserInitial</div>
                         <div>
                             <div class="pooc-drop-name">@currentUserName</div>
-                            <div class="pooc-drop-role">ผู้ดูแลระบบ</div>
+                            <div class="pooc-drop-role">@(isAdmin ? "ผู้ดูแลระบบ" : "เจ้าหน้าที่")</div>
                             <span class="pooc-drop-badge">
-                                <i class="ti ti-shield-check" style="font-size:11px" aria-hidden="true"></i> Admin
+                                @if (isAdmin) {
+                                    <i class="ti ti-shield-check" style="font-size:11px" aria-hidden="true"></i> <text>Admin</text>
+                                } else {
+                                    <i class="ti ti-user" style="font-size:11px" aria-hidden="true"></i> <text>Staff</text>
+                                }
                             </span>
                         </div>
                     </div>
                     <div class="pooc-drop-body">
-                        <a class="pooc-drop-item @(isUserPage ? "active" : "")"
-                           asp-controller="User" asp-action="Index" onclick="poocCloseDrop()">
-                            <i class="ti ti-users" aria-hidden="true"></i>
-                            จัดการผู้ใช้งาน
-                        </a>
+                        @if (isAdmin) {
+                            <a class="pooc-drop-item @(isUserPage ? "active" : "")"
+                               asp-controller="User" asp-action="Index" onclick="poocCloseDrop()">
+                                <i class="ti ti-users" aria-hidden="true"></i>
+                                จัดการผู้ใช้งาน
+                            </a>
+                        }
                     </div>
                     <div class="pooc-drop-footer">
                         <button class="pooc-foot-btn" title="เปลี่ยนรหัสผ่าน"
