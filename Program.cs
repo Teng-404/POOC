@@ -19,9 +19,20 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Auth/AccessDenied";
     });
 
+// [แก้ไข #2] ลงทะเบียน Policy "Admin" — ให้ [Authorize(Policy = "Admin")] ใช้งานได้
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Admin", policy =>
+        policy.RequireClaim("IsAdmin", "true"));
+});
+
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    // [แก้ไข #4] บังคับ Anti-Forgery Token ทั่วทั้ง app (ยกเว้น [IgnoreAntiforgeryToken])
+    options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+});
 
 QuestPDF.Settings.License = LicenseType.Community;
 
@@ -107,6 +118,9 @@ using (var scope = app.Services.CreateScope())
     DatabaseInitializer.EnsureColumn(context, "LoanDetails", "PenaltyPaid", "REAL NOT NULL DEFAULT 0");
     context.Database.ExecuteSqlRaw("UPDATE LoanDetails SET PaidAmount = Payment WHERE IsPaid = 1 AND PaidAmount = 0");
 
+    // [แก้ไข #1] เพิ่ม column IsAdmin ใน Users (DEFAULT 0 = Staff)
+    DatabaseInitializer.EnsureColumn(context, "Users", "IsAdmin", "INTEGER NOT NULL DEFAULT 0");
+
     if (!context.SystemSettings.Any(x => x.Key == "PenaltyRate"))
     {
         context.SystemSettings.Add(new SystemSetting { Key = "PenaltyRate", Value = "1.5", Description = "อัตราค่าปรับต่อเดือน (%)" });
@@ -119,7 +133,22 @@ using (var scope = app.Services.CreateScope())
 
     if (!context.Users.Any(u => u.Username == "admin"))
     {
-        context.Users.Add(new User { Username = "admin", Password = PasswordHashService.HashPassword("123"), FullName = "Admin" });
+        context.Users.Add(new User
+        {
+            Username = "admin",
+            Password = PasswordHashService.HashPassword("123"),
+            FullName = "Admin",
+            IsAdmin = true   // [แก้ไข #1] admin หลักเป็น Admin เสมอ
+        });
+    }
+    else
+    {
+        // [แก้ไข #1] อัปเกรด admin เก่าที่มีอยู่ใน DB ให้มี IsAdmin = true
+        var adminUser = context.Users.FirstOrDefault(u => u.Username == "admin");
+        if (adminUser != null && !adminUser.IsAdmin)
+        {
+            adminUser.IsAdmin = true;
+        }
     }
 
     foreach (var user in context.Users.Where(u => !u.Password.StartsWith("PBKDF2$")))

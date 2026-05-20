@@ -13,6 +13,7 @@ namespace POOC.Models
         [Required]
         public string Password { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
-        public DateTime CreatedDate { get; set; } = DateTime.Now;
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow; // แก้ จาก DateTime.Now → UtcNow
+        public bool IsAdmin { get; set; } = false;                    // [ใหม่] true = Admin, false = Staff
     }
 }

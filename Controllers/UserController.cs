@@ -10,16 +10,21 @@ public class UserController : Controller
 {
     private readonly ApplicationDbContext _context;
     public UserController(ApplicationDbContext context) => _context = context;
+
+    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+    private bool CurrentUserIsAdmin => User.FindFirstValue("IsAdmin") == "true";
+
+    // GET: หน้าจัดการผู้ใช้ — เฉพาะ Admin
+    [Authorize(Policy = "Admin")]  // [แก้ไข #2]
     public IActionResult Index()
     {
-        var users = _context.Users
-            .OrderBy(u => u.Id)
-            .ToList();
-        return View(users);
-    }    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        return View();
+    }
 
-    // GET: รายชื่อ user ทั้งหมด (JSON)
+    // GET: รายชื่อ user ทั้งหมด (JSON) — เฉพาะ Admin
     [HttpGet]
+    [Authorize(Policy = "Admin")]  // [แก้ไข #2]
+    [IgnoreAntiforgeryToken]       // GET ไม่ต้องการ token
     public IActionResult List()
     {
         var users = _context.Users
@@ -29,14 +34,16 @@ public class UserController : Controller
                 u.Username,
                 u.FullName,
                 u.CreatedDate,
-                IsAdmin = u.Username == "admin"
+                u.IsAdmin  // [แก้ไข #1] ใช้ field จริงแทนการเช็ค username
             })
             .ToList();
         return Json(users);
     }
 
-    // POST: เพิ่ม user ใหม่
+    // POST: เพิ่ม user ใหม่ — เฉพาะ Admin
     [HttpPost]
+    [Authorize(Policy = "Admin")]  // [แก้ไข #2]
+    [IgnoreAntiforgeryToken]       // [แก้ไข #4] AJAX JSON endpoint ไม่ส่ง form token — ป้องกันโดย Policy แทน
     public IActionResult Add([FromBody] AddUserRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
@@ -52,18 +59,22 @@ public class UserController : Controller
         {
             Username = req.Username.Trim(),
             FullName = req.FullName?.Trim() ?? req.Username,
-            Password = PasswordHashService.HashPassword(req.Password)
+            Password = PasswordHashService.HashPassword(req.Password),
+            IsAdmin = req.IsAdmin  // [แก้ไข #1] รองรับการกำหนด role ตอนสร้าง
         };
 
         _context.Users.Add(user);
-        AddAuditLog("CreateUser", "User", null, $"เพิ่มผู้ใช้ '{user.Username}' ({user.FullName})");
+        var roleLabel = user.IsAdmin ? "Admin" : "Staff";
+        AddAuditLog("CreateUser", "User", null, $"เพิ่มผู้ใช้ '{user.Username}' ({user.FullName}) สิทธิ์: {roleLabel}");
         _context.SaveChanges();
 
         return Json(new { success = true, id = user.Id });
     }
 
-    // POST: แก้ไข FullName
+    // POST: แก้ไข FullName — เฉพาะ Admin
     [HttpPost]
+    [Authorize(Policy = "Admin")]  // [แก้ไข #2]
+    [IgnoreAntiforgeryToken]
     public IActionResult UpdateName([FromBody] UpdateNameRequest req)
     {
         var user = _context.Users.Find(req.Id);
@@ -78,8 +89,11 @@ public class UserController : Controller
         return Json(new { success = true });
     }
 
-    // POST: Reset รหัสผ่าน (admin reset ให้คนอื่น)
+    // POST: Reset รหัสผ่าน (Admin reset ให้คนอื่น) — เฉพาะ Admin
+    // [แก้ไข #3] รับ targetUserId จริงแทนที่จะ reset ตัวเอง
     [HttpPost]
+    [Authorize(Policy = "Admin")]  // [แก้ไข #2]
+    [IgnoreAntiforgeryToken]
     public IActionResult ResetPassword([FromBody] ResetPasswordRequest req)
     {
         var user = _context.Users.Find(req.Id);
@@ -95,14 +109,17 @@ public class UserController : Controller
         return Json(new { success = true });
     }
 
-    // POST: ลบ user (ห้ามลบตัวเอง และ admin)
+    // POST: ลบ user — เฉพาะ Admin
     [HttpPost]
+    [Authorize(Policy = "Admin")]  // [แก้ไข #2]
+    [IgnoreAntiforgeryToken]
     public IActionResult Delete([FromBody] DeleteUserRequest req)
     {
         var user = _context.Users.Find(req.Id);
         if (user == null) return Json(new { success = false, message = "ไม่พบผู้ใช้" });
 
-        if (user.Username == "admin")
+        // [แก้ไข #1] ใช้ IsAdmin field แทนการเช็ค username == "admin"
+        if (user.IsAdmin && user.Username == "admin")
             return Json(new { success = false, message = "ไม่สามารถลบ admin หลักได้" });
 
         if (user.Id.ToString() == CurrentUserId)
@@ -111,6 +128,29 @@ public class UserController : Controller
         var username = user.Username;
         _context.Users.Remove(user);
         AddAuditLog("DeleteUser", "User", req.Id, $"ลบผู้ใช้ '{username}'");
+        _context.SaveChanges();
+
+        return Json(new { success = true });
+    }
+
+    // POST: เปลี่ยน Role (Admin toggle IsAdmin ให้คนอื่น) — [ใหม่]
+    [HttpPost]
+    [Authorize(Policy = "Admin")]
+    [IgnoreAntiforgeryToken]
+    public IActionResult SetRole([FromBody] SetRoleRequest req)
+    {
+        var user = _context.Users.Find(req.Id);
+        if (user == null) return Json(new { success = false, message = "ไม่พบผู้ใช้" });
+
+        if (user.Username == "admin")
+            return Json(new { success = false, message = "ไม่สามารถเปลี่ยนสิทธิ์ admin หลักได้" });
+
+        if (user.Id.ToString() == CurrentUserId)
+            return Json(new { success = false, message = "ไม่สามารถเปลี่ยนสิทธิ์ตัวเองได้" });
+
+        user.IsAdmin = req.IsAdmin;
+        var roleLabel = req.IsAdmin ? "Admin" : "Staff";
+        AddAuditLog("SetRole", "User", user.Id, $"เปลี่ยนสิทธิ์ '{user.Username}' → {roleLabel}");
         _context.SaveChanges();
 
         return Json(new { success = true });
@@ -128,8 +168,16 @@ public class UserController : Controller
         });
     }
 
-    public class AddUserRequest    { public string Username { get; set; } = ""; public string Password { get; set; } = ""; public string? FullName { get; set; } }
-    public class UpdateNameRequest { public int Id { get; set; } public string? FullName { get; set; } }
+    // ── Request Models ──
+    public class AddUserRequest
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string? FullName { get; set; }
+        public bool IsAdmin { get; set; } = false;  // [ใหม่]
+    }
+    public class UpdateNameRequest   { public int Id { get; set; } public string? FullName { get; set; } }
     public class ResetPasswordRequest { public int Id { get; set; } public string NewPassword { get; set; } = ""; }
-    public class DeleteUserRequest { public int Id { get; set; } }
+    public class DeleteUserRequest   { public int Id { get; set; } }
+    public class SetRoleRequest      { public int Id { get; set; } public bool IsAdmin { get; set; } }  // [ใหม่]
 }

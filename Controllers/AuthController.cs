@@ -19,6 +19,7 @@ public class AuthController : Controller
     }
 
     [HttpPost]
+    [IgnoreAntiforgeryToken] // หน้า Login ไม่มี form token เดิม
     public async Task<IActionResult> Login(string username, string password)
     {
         var user = _context.Users.FirstOrDefault(u => u.Username == username);
@@ -35,7 +36,9 @@ public class AuthController : Controller
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.FullName)
+                new Claim(ClaimTypes.Name, user.FullName),
+                // [แก้ไข #2] ฝัง IsAdmin Claim — ใช้คู่กับ Policy "Admin"
+                new Claim("IsAdmin", user.IsAdmin ? "true" : "false")
             };
 
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -61,10 +64,8 @@ public class AuthController : Controller
 
     [Authorize]
     [HttpPost]
-    [ValidateAntiForgeryToken]
     public IActionResult ChangePassword(string currentPassword, string newPassword, string confirmPassword)
     {
-        // ถ้าเรียกจาก AJAX modal ให้ตอบกลับเป็น JSON
         bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
