@@ -47,16 +47,21 @@
     .summary-mini-label { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
     .summary-mini-val { font-size: 16px; font-weight: 500; }
     .loading-row { text-align: center; padding: 24px; color: #9ca3af; font-size: 13px; }
+
+    /* ── กราฟ trend (ใหม่) ── */
     .trend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-    .trend-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-    .trend-tab { padding: 4px 12px; font-size: 12px; border-radius: 20px; cursor: pointer; border: 0.5px solid #e5e7eb; background: transparent; color: #6b7280; }
+    .trend-tabs { display: flex; gap: 4px; }
+    .trend-tab { padding: 3px 10px; font-size: 11px; border-radius: 20px; cursor: pointer;
+                 border: 0.5px solid #e5e7eb; background: transparent; color: #6b7280;
+                 font-family: inherit; transition: background 0.15s; }
     .trend-tab.active { background: #111827; color: #fff; border-color: #111827; }
-    
-    @@media (max-width: 768px) { .trend-grid { grid-template-columns: 1fr; } }
+    .trend-tab:hover:not(.active) { background: #f3f4f6; }
+
     @@media (max-width: 768px) {
         .metric-grid { grid-template-columns: repeat(2, 1fr); }
         .section-grid { grid-template-columns: 1fr; }
         .summary-mini-grid { grid-template-columns: 1fr 1fr; }
+        .trend-grid { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -145,7 +150,7 @@
             <div class="card-head">
                 <p class="card-title">รายงานเงินฝากรวมทั้งกองทุน</p>
                 <button class="card-action" onclick="loadSavingsSummary()">
-                    <i class="bi bi-arrow-clockwise"></i> โหลดใหม่ 
+                    <i class="bi bi-arrow-clockwise"></i> โหลดใหม่
                 </button>
             </div>
 
@@ -181,7 +186,7 @@
     </div>
 
     <!-- MEMBER DETAIL TABLE -->
-    <div class="db-card" style="margin-bottom: 2rem;">
+    <div class="db-card" style="margin-bottom: 16px;">
         <div class="card-head">
             <p class="card-title">รายละเอียดสมาชิก — เงินฝากและดอกเบี้ยสะสม</p>
         </div>
@@ -191,6 +196,42 @@
             </div>
         </div>
     </div>
+
+    <!-- ════ TREND CHARTS (ใหม่) ════ -->
+    <div class="trend-grid">
+
+        <!-- กราฟ: เงินกู้ปล่อย vs เก็บคืน -->
+        <div class="db-card">
+            <div class="card-head">
+                <p class="card-title">เงินกู้ปล่อย vs เก็บคืน (รายเดือน)</p>
+                <div class="trend-tabs" id="loanTrendTabs">
+                    <button class="trend-tab active" onclick="setTrendRange(6,this)">6 เดือน</button>
+                    <button class="trend-tab"        onclick="setTrendRange(12,this)">12 เดือน</button>
+                    <button class="trend-tab"        onclick="setTrendRange(24,this)">24 เดือน</button>
+                </div>
+            </div>
+            <div style="position:relative; width:100%; height:260px;">
+                <canvas id="loanTrendChart" role="img" aria-label="กราฟเงินกู้รายเดือน"></canvas>
+            </div>
+        </div>
+
+        <!-- กราฟ: เงินฝากสุทธิรายเดือน -->
+        <div class="db-card">
+            <div class="card-head">
+                <p class="card-title">เงินฝากสุทธิรายเดือน</p>
+                <div class="trend-tabs" id="savingsTrendTabs">
+                    <button class="trend-tab active" onclick="setTrendRange(6,this)">6 เดือน</button>
+                    <button class="trend-tab"        onclick="setTrendRange(12,this)">12 เดือน</button>
+                    <button class="trend-tab"        onclick="setTrendRange(24,this)">24 เดือน</button>
+                </div>
+            </div>
+            <div style="position:relative; width:100%; height:260px;">
+                <canvas id="savingsTrendChart" role="img" aria-label="กราฟเงินฝากรายเดือน"></canvas>
+            </div>
+        </div>
+
+    </div>
+    <!-- ════ END TREND CHARTS ════ -->
 
 </div>
 
@@ -203,9 +244,12 @@ const CHART_COLORS = [
     '#0891b2','#b45309'
 ];
 
-let savingsChartInstance = null;
+let savingsChartInstance  = null;
+let loanTrendInstance     = null;
+let savingsTrendInstance  = null;
+let currentTrendMonths    = 6;
 
-// คำนวณ % เก็บคืน
+// ── คำนวณ % เก็บคืน ──
 (function initLoanProgress() {
     const total     = parseFloat('@(ViewBag.TotalLoan ?? 0)');
     const collected = parseFloat('@(ViewBag.Collected ?? 0)');
@@ -220,12 +264,12 @@ let savingsChartInstance = null;
     }
 })();
 
+// ── โหลดสรุปเงินฝาก (เดิม) ──
 async function loadSavingsSummary() {
     try {
         const res  = await fetch('/Member/GetSavingsSummary');
         const data = await res.json();
 
-        // --- mini cards ---
         document.getElementById('totalBalanceCard').innerText =
             '฿' + data.totalBalance.toLocaleString('th-TH', { minimumFractionDigits: 2 });
         document.getElementById('totalInterestCard').innerText =
@@ -233,7 +277,6 @@ async function loadSavingsSummary() {
         document.getElementById('totalMembersCard').innerText =
             data.members.length + ' คน';
 
-        // --- bar rows ---
         const maxBal = Math.max(...data.members.map(m => m.balance), 1);
         let barHtml = '';
         data.members.forEach((m, i) => {
@@ -252,10 +295,9 @@ async function loadSavingsSummary() {
         document.getElementById('barRows').innerHTML =
             barHtml || '<div class="loading-row">ไม่มีข้อมูล</div>';
 
-        // --- member detail rows ---
         let memberHtml = '';
         data.members.forEach((m, i) => {
-            const color   = CHART_COLORS[i % CHART_COLORS.length];
+            const color    = CHART_COLORS[i % CHART_COLORS.length];
             const initials = m.name.split(' ').map(w => w.charAt(0)).join('').slice(0, 2);
             memberHtml += `
             <div class="member-row">
@@ -272,7 +314,7 @@ async function loadSavingsSummary() {
         document.getElementById('memberRows').innerHTML =
             memberHtml || '<div class="loading-row">ไม่มีข้อมูลสมาชิกที่ฝากเงิน</div>';
 
-        // --- doughnut chart ---
+        // doughnut chart
         const top6   = data.members.slice(0, 6);
         const others = data.members.slice(6).reduce((s, m) => s + m.balance, 0);
         const labels = top6.map(m => m.name);
@@ -280,7 +322,6 @@ async function loadSavingsSummary() {
         const clrs   = CHART_COLORS.slice(0, top6.length);
         if (others > 0) { labels.push('อื่น ๆ'); values.push(others); clrs.push('#888780'); }
 
-        // legend
         const totalBal = values.reduce((s, v) => s + v, 0);
         let legendHtml = '';
         labels.forEach((lbl, i) => {
@@ -297,12 +338,7 @@ async function loadSavingsSummary() {
             type: 'doughnut',
             data: {
                 labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: clrs,
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                }]
+                datasets: [{ data: values, backgroundColor: clrs, borderWidth: 2, borderColor: '#ffffff' }]
             },
             options: {
                 responsive: true,
@@ -310,11 +346,7 @@ async function loadSavingsSummary() {
                 cutout: '62%',
                 plugins: {
                     legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ` ฿${ctx.raw.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`
-                        }
-                    }
+                    tooltip: { callbacks: { label: ctx => ` ฿${ctx.raw.toLocaleString('th-TH', { minimumFractionDigits: 2 })}` } }
                 }
             }
         });
@@ -325,6 +357,136 @@ async function loadSavingsSummary() {
     }
 }
 
-// โหลดอัตโนมัติเมื่อเปิดหน้า
+// ════ Trend Charts (ใหม่) ════
+
+async function loadTrendCharts(months) {
+    try {
+        const res  = await fetch(`/Home/GetLoanTrend?months=${months}`);
+        const data = await res.json();
+        renderLoanTrend(data);
+        renderSavingsTrend(data);
+    } catch (e) {
+        console.error('โหลด trend ไม่สำเร็จ', e);
+    }
+}
+
+function renderLoanTrend(data) {
+    if (loanTrendInstance) loanTrendInstance.destroy();
+    loanTrendInstance = new Chart(document.getElementById('loanTrendChart'), {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: 'ปล่อยกู้',
+                    data: data.loanDisbursed,
+                    backgroundColor: 'rgba(24,95,165,0.75)',
+                    borderRadius: 4,
+                    order: 2
+                },
+                {
+                    label: 'เก็บเงินต้นคืน',
+                    data: data.principalCollected,
+                    backgroundColor: 'rgba(15,110,86,0.75)',
+                    borderRadius: 4,
+                    order: 2
+                },
+                {
+                    label: 'ดอกเบี้ยรับ',
+                    data: data.interestCollected,
+                    type: 'line',
+                    borderColor: '#D85A30',
+                    backgroundColor: 'rgba(216,90,48,0.08)',
+                    pointBackgroundColor: '#D85A30',
+                    pointRadius: 3,
+                    tension: 0.35,
+                    fill: false,
+                    order: 1,
+                    yAxisID: 'y2'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ฿${Number(ctx.raw).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`
+                    }
+                }
+            },
+            scales: {
+                x:  { ticks: { font: { size: 11 } }, grid: { display: false } },
+                y:  {
+                    ticks: { font: { size: 11 }, callback: v => '฿' + (v / 1000).toFixed(0) + 'k' },
+                    grid: { color: '#f3f4f6' }
+                },
+                y2: {
+                    position: 'right',
+                    ticks: { font: { size: 10 }, callback: v => '฿' + (v / 1000).toFixed(1) + 'k' },
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+}
+
+function renderSavingsTrend(data) {
+    if (savingsTrendInstance) savingsTrendInstance.destroy();
+    const bgColors = data.savingsNet.map(v => v >= 0 ? 'rgba(15,110,86,0.75)' : 'rgba(216,90,48,0.75)');
+    savingsTrendInstance = new Chart(document.getElementById('savingsTrendChart'), {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'ฝาก-ถอนสุทธิ',
+                data: data.savingsNet,
+                backgroundColor: bgColors,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const sign = ctx.raw >= 0 ? '+' : '';
+                            return ` ฝาก-ถอนสุทธิ: ${sign}฿${Number(ctx.raw).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+                y: {
+                    ticks: { font: { size: 11 }, callback: v => '฿' + (v / 1000).toFixed(0) + 'k' },
+                    grid: { color: '#f3f4f6' }
+                }
+            }
+        }
+    });
+}
+
+// ── ปุ่ม range: sync ทั้ง 2 กลุ่ม tab พร้อมกัน ──
+function setTrendRange(months, btn) {
+    currentTrendMonths = months;
+    // sync ทั้ง 2 tab groups
+    ['loanTrendTabs', 'savingsTrendTabs'].forEach(groupId => {
+        const tabs = document.querySelectorAll(`#${groupId} .trend-tab`);
+        tabs.forEach(t => t.classList.remove('active'));
+        const idx = months === 6 ? 0 : months === 12 ? 1 : 2;
+        if (tabs[idx]) tabs[idx].classList.add('active');
+    });
+    loadTrendCharts(months);
+}
+
+// ── โหลดอัตโนมัติเมื่อเปิดหน้า ──
 loadSavingsSummary();
+loadTrendCharts(currentTrendMonths);
 </script>
