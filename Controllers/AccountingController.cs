@@ -233,6 +233,21 @@ public class AccountingController : Controller
                 Amount = (decimal)detail.Payment,
                 DownloadUrl = Url.Action(nameof(Receipt), "Accounting", new { type = "loan", id = detail.Id }) ?? string.Empty
             });
+
+            // [ใหม่] ledger ค่าปรับแยกแถว (ถ้ามี)
+            if (detail.PenaltyPaid > 0)
+            {
+                ledgerRows.Add(new AccountingLedgerRow
+                {
+                    Date = detail.PaidDate.Value,
+                    DocumentNo = $"PEN-{detail.Id:D5}",
+                    Type = "รับค่าปรับ",
+                    MemberName = memberName,
+                    Description = $"ค่าปรับงวดที่ {detail.Installment} ของสัญญา LN-{detail.LoanId:D5}",
+                    Debit  = 0,
+                    Credit = (decimal)detail.PenaltyPaid
+                });
+            }
         }
 
         var summary = new AccountingSummary
@@ -246,7 +261,9 @@ public class AccountingController : Controller
             OutstandingLoanPrincipal = _context.Loans.AsNoTracking()
                 .Include(l => l.LoanDetails)
                 .ToList()
-                .Sum(l => (decimal)Math.Max(0, l.Amount - l.LoanDetails.Where(d => d.IsPaid).Sum(d => d.Principal)))
+                .Sum(l => (decimal)Math.Max(0, l.Amount - l.LoanDetails.Where(d => d.IsPaid).Sum(d => d.Principal))),
+            // [ใหม่] ค่าปรับที่เก็บได้จริงในช่วงเวลาที่เลือก
+            PenaltyCollected = loanDetails.Where(d => d.PenaltyPaid > 0).Sum(d => (decimal)d.PenaltyPaid)
         };
 
         var interestHistory = _context.SavingsInterests
@@ -305,12 +322,16 @@ public class AccountingController : Controller
             if (detail?.Loan == null) return NotFound();
 
             var memberName = detail.Loan.Member != null ? $"{detail.Loan.Member.FirstName} {detail.Loan.Member.LastName}" : "-";
+            // [ใหม่] รวมค่าปรับในใบเสร็จ
+            var penaltyDesc = detail.PenaltyPaid > 0
+                ? $" (รวมค่าปรับ {detail.PenaltyPaid:N2} บาท)"
+                : "";
             var document = CreateReceiptDocument(
                 $"RC-{detail.Id:D5}",
                 detail.PaidDate ?? DateTime.Now,
                 memberName,
-                $"รับชำระเงินกู้งวดที่ {detail.Installment} เงินต้น {detail.Principal:N2} บาท ดอกเบี้ย {detail.Interest:N2} บาท",
-                (decimal)detail.Payment,
+                $"รับชำระเงินกู้งวดที่ {detail.Installment} เงินต้น {detail.Principal:N2} บาท ดอกเบี้ย {detail.Interest:N2} บาท{penaltyDesc}",
+                (decimal)detail.Payment + (decimal)detail.PenaltyPaid,
                 "ใบเสร็จรับชำระเงินกู้");
 
             return File(document.GeneratePdf(), "application/pdf", $"Receipt_RC_{detail.Id:D5}.pdf");
@@ -342,6 +363,7 @@ public class AccountingController : Controller
                         AddSummaryBox(row, "เงินรับ", report.Summary.CashInflow);
                         AddSummaryBox(row, "เงินจ่าย", report.Summary.CashOutflow);
                         AddSummaryBox(row, "สุทธิ", report.Summary.NetCashMovement);
+                        AddSummaryBox(row, "ค่าปรับเก็บได้", report.Summary.PenaltyCollected);
                         AddSummaryBox(row, "ลูกหนี้คงเหลือ", report.Summary.OutstandingLoanPrincipal);
                     });
 

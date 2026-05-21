@@ -20,7 +20,9 @@ namespace POOC.Models
         public decimal LoanPrincipalCollected { get; set; }
         public decimal LoanInterestCollected { get; set; }
         public decimal OutstandingLoanPrincipal { get; set; }
-        public decimal CashInflow => SavingsDeposits + LoanPrincipalCollected + LoanInterestCollected;
+        // [ใหม่] ค่าปรับที่เก็บได้จริงในช่วงเวลาที่เลือก
+        public decimal PenaltyCollected { get; set; }
+        public decimal CashInflow => SavingsDeposits + LoanPrincipalCollected + LoanInterestCollected + PenaltyCollected;
         public decimal CashOutflow => SavingsWithdrawals + SavingsInterestPaid + LoanDisbursed;
         public decimal NetCashMovement => CashInflow - CashOutflow;
     }

@@ -125,6 +125,31 @@
         </div>
     </div>
 
+    <!-- [ใหม่] METRIC CARD ค่าปรับค้างชำระ -->
+    <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:1.5rem;">
+        <div class="metric-card" style="border-left:3px solid #f97316;">
+            <div class="metric-label">
+                <i class="bi bi-exclamation-triangle-fill" style="color:#f97316;"></i>
+                ค่าปรับค้างชำระ (งวดที่เกินกำหนด)
+            </div>
+            <div class="metric-value" id="pendingPenaltyValue" style="color:#c2410c;">—</div>
+            <div class="metric-delta down" id="pendingPenaltyCount" style="display:none;">
+                <i class="bi bi-exclamation-circle"></i>
+                <span id="overdueCountText">0</span> งวดเกินกำหนด
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">
+                <i class="bi bi-info-circle" style="color:#6b7280;"></i>
+                หมายเหตุค่าปรับ :
+            </div>
+            <div style="font-size:12px; color:#6b7280; line-height:1.6;">
+                คำนวณจากยอดงวดที่ยังไม่ชำระ × อัตราค่าปรับ × จำนวนเดือนที่เกิน<br>
+                อัตราค่าปรับปัจจุบันคือ 1.5% ต่อเดือน (อาจมีการเปลี่ยนแปลงตามนโยบาย)
+            </div>
+        </div>
+    </div>
+
     <!-- CHART + SUMMARY GRID -->
     <div class="section-grid">
 
@@ -485,6 +510,26 @@ function setTrendRange(months, btn) {
     });
     loadTrendCharts(months);
 }
+
+// ── [ใหม่] โหลดค่าปรับค้างชำระ ──
+(async function loadOverdueBadge() {
+    try {
+        const res  = await fetch('/Loan/GetOverdueSummary');
+        const data = await res.json();
+
+        const penaltyEl = document.getElementById('pendingPenaltyValue');
+        if (penaltyEl) {
+            const penalty = Number(data.totalPenalty ?? 0);
+            penaltyEl.textContent = '฿' + penalty.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+        }
+        const countWrap = document.getElementById('pendingPenaltyCount');
+        const countTxt  = document.getElementById('overdueCountText');
+        if (countWrap && countTxt && data.overdueCount > 0) {
+            countTxt.textContent = data.overdueCount;
+            countWrap.style.display = 'block';
+        }
+    } catch(e) {}
+})();
 
 // ── โหลดอัตโนมัติเมื่อเปิดหน้า ──
 loadSavingsSummary();

@@ -34,6 +34,7 @@
     .kpi-value.neg { color:#dc2626; }
     .kpi-value.pri { color:#185FA5; }
     .kpi-value.war { color:#b45309; }
+    .kpi-value.pen { color:#c2410c; }  /* [ใหม่] ค่าปรับ */
     .kpi-chip      { font-size:10px; margin-top:4px; color:#9ca3af; }
 
     /* ── Annual interest section ── */
@@ -73,6 +74,7 @@
     .type-กู้    { background:#eff6ff; color:#185FA5; }
     .type-ชำระ  { background:#fefce8; color:#b45309; }
     .type-ดอก   { background:#fdf4ff; color:#7c3aed; }
+    .type-ปรับ  { background:#fff7ed; color:#c2410c; }  /* [ใหม่] ค่าปรับ */
     .doc-no { font-family:monospace; font-size:12px; color:#6b7280; }
     .debit-val  { color:#dc2626; font-variant-numeric:tabular-nums; }
     .credit-val { color:#059669; font-variant-numeric:tabular-nums; }
@@ -188,6 +190,15 @@
             <div class="kpi-label"><i class="bi bi-graph-up" style="color:#b45309"></i> ดอกเบี้ยรับจากเงินกู้</div>
             <div class="kpi-value war">฿@Model.Summary.LoanInterestCollected.ToString("N2")</div>
         </div>
+        <div class="kpi-card" style="border-left:3px solid #f97316;">
+            <div class="kpi-label"><i class="bi bi-exclamation-triangle-fill" style="color:#f97316"></i> ค่าปรับที่เก็บได้</div>
+            <div class="kpi-value pen">฿@Model.Summary.PenaltyCollected.ToString("N2")</div>
+            <div class="kpi-chip">ในช่วงวันที่เลือก</div>
+        </div>
+    </div>
+
+    <!-- KPI ROW 3: ดอกเบี้ยเงินฝากที่จ่าย [ย้ายมา row ใหม่] -->
+    <div class="kpi-grid" style="grid-template-columns:1fr; margin-bottom:24px;">
         <div class="kpi-card">
             <div class="kpi-label"><i class="bi bi-graph-down" style="color:#7c3aed"></i> ดอกเบี้ยเงินฝากที่จ่าย</div>
             <div class="kpi-value" style="color:#7c3aed">฿@Model.Summary.SavingsInterestPaid.ToString("N2")</div>
@@ -289,8 +300,10 @@
                                                 : row.Type.Contains("ถอน") ? "type-ถอน"
                                                 : row.Type.Contains("กู้") && !row.Type.Contains("ชำระ") ? "type-กู้"
                                                 : row.Type.Contains("ชำระ") ? "type-ชำระ"
+                                                : row.Type.Contains("ปรับ") ? "type-ปรับ"
                                                 : "type-ดอก";
-                                    <tr>
+                                    var rowStyle = row.Type.Contains("ปรับ") ? "background:#fffbf7;" : "";
+                                    <tr style="@rowStyle">
                                         <td>@row.Date.ToString("dd/MM/yyyy")</td>
                                         <td><span class="doc-no">@row.DocumentNo</span></td>
                                         <td><span class="type-badge @typeCss">@row.Type</span></td>
