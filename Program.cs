@@ -9,10 +9,12 @@ using System.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ──
-// [STEP 1] ปิด SensitiveDataLogging และ verbose log ใน Production
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=loan_data.db";
+
 var dbOptions = (DbContextOptionsBuilder options) =>
 {
-    options.UseSqlite("Data Source=loan_data.db");
+    options.UseSqlite(connectionString);
     if (builder.Environment.IsDevelopment())
     {
         options.LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information)
@@ -22,7 +24,6 @@ var dbOptions = (DbContextOptionsBuilder options) =>
 builder.Services.AddDbContext<ApplicationDbContext>(dbOptions);
 
 // ── Authentication ──
-// [STEP 2] เพิ่ม session timeout: หมดอายุใน 8 ชม., sliding = ต่ออายุอัตโนมัติถ้ายังใช้งาน
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -31,7 +32,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
         options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        // Dev = HTTP ได้ปกติ, Production = HTTPS เท่านั้น
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Strict;
     });
 
@@ -50,11 +54,11 @@ builder.Services.AddControllersWithViews(options =>
 
 QuestPDF.Settings.License = LicenseType.Community;
 
-// [STEP 4] Rate limiting — จำกัด login ไม่เกิน 5 ครั้ง / 10 นาที ต่อ IP
+// Rate limiting
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<POOC.Services.LoginRateLimiter>();
 
-// [STEP 5] Backup SQLite ทุก 6 ชม. อัตโนมัติ
+// Auto backup
 builder.Services.AddHostedService<POOC.Services.SqliteBackupService>();
 
 var invariantCulture = System.Globalization.CultureInfo.InvariantCulture;
@@ -68,9 +72,9 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
+    app.UseHttpsRedirection(); // บังคับ redirect เฉพาะ Production
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();

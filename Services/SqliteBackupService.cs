@@ -24,8 +24,16 @@ namespace POOC.Services
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                await Task.Delay(Interval, stoppingToken);
-                DoBackup();
+                try
+                {
+                    await Task.Delay(Interval, stoppingToken);
+                    DoBackup();
+                }
+                catch (OperationCanceledException)
+                {
+                    // แอปกำลังปิด — ออกจาก loop อย่างสะอาด ไม่ใช่ error
+                    break;
+                }
             }
         }
 
