@@ -10,7 +10,13 @@ using POOC.Services;
 public class AuthController : Controller
 {
     private readonly ApplicationDbContext _context;
-    public AuthController(ApplicationDbContext context) => _context = context;
+    private readonly LoginRateLimiter _rateLimiter;
+
+    public AuthController(ApplicationDbContext context, LoginRateLimiter rateLimiter)
+    {
+        _context = context;
+        _rateLimiter = rateLimiter;
+    }
 
     [HttpGet]
     public IActionResult Login()
@@ -22,10 +28,21 @@ public class AuthController : Controller
     [IgnoreAntiforgeryToken] // หน้า Login ไม่มี form token เดิม
     public async Task<IActionResult> Login(string username, string password)
     {
+        // [STEP 4] Rate limiting — บล็อก IP ที่ผิดเกิน 5 ครั้งใน 10 นาที
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (_rateLimiter.IsBlocked(ip))
+        {
+            ViewBag.Error = "ลองเข้าสู่ระบบหลายครั้งเกินไป กรุณารอ 10 นาทีแล้วลองใหม่";
+            return View("Index");
+        }
+
         var user = _context.Users.FirstOrDefault(u => u.Username == username);
 
         if (user != null && PasswordHashService.VerifyPassword(password, user.Password))
         {
+            // [STEP 4] login สำเร็จ — reset นับครั้งของ IP นี้
+            _rateLimiter.Reset(ip);
+
             if (!PasswordHashService.IsHashedPassword(user.Password))
             {
                 user.Password = PasswordHashService.HashPassword(password);
@@ -51,6 +68,8 @@ public class AuthController : Controller
             return RedirectToAction("Member", "Home");
         }
 
+        // [STEP 4] login ผิด — นับครั้ง
+        _rateLimiter.RecordFailure(ip);
         ViewBag.Error = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
         return View("Index");
     }

@@ -50,6 +50,13 @@ builder.Services.AddControllersWithViews(options =>
 
 QuestPDF.Settings.License = LicenseType.Community;
 
+// [STEP 4] Rate limiting — จำกัด login ไม่เกิน 5 ครั้ง / 10 นาที ต่อ IP
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<POOC.Services.LoginRateLimiter>();
+
+// [STEP 5] Backup SQLite ทุก 6 ชม. อัตโนมัติ
+builder.Services.AddHostedService<POOC.Services.SqliteBackupService>();
+
 var invariantCulture = System.Globalization.CultureInfo.InvariantCulture;
 System.Globalization.CultureInfo.DefaultThreadCurrentCulture = invariantCulture;
 System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = invariantCulture;
