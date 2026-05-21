@@ -1,0 +1,496 @@
+@{
+    ViewData["Title"] = "Audit Log";
+}
+
+<style>
+    /* ── Page header ── */
+    .al-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .al-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary, #1a1a18);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .al-title i { color: #6b7280; font-size: 20px; }
+
+    /* ── Filter bar ── */
+    .al-filters {
+        background: #fff;
+        border: 0.5px solid rgba(0,0,0,0.1);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: flex-end;
+    }
+    .al-filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 130px;
+        flex: 1;
+    }
+    .al-filter-group label {
+        font-size: 11px;
+        font-weight: 500;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+    .al-filter-group input,
+    .al-filter-group select {
+        height: 34px;
+        border: 0.5px solid rgba(0,0,0,0.15);
+        border-radius: 8px;
+        padding: 0 10px;
+        font-size: 13px;
+        font-family: 'Sarabun', sans-serif;
+        color: #1a1a18;
+        background: #fafafa;
+        outline: none;
+        transition: border-color .15s;
+    }
+    .al-filter-group input:focus,
+    .al-filter-group select:focus { border-color: #1D9E75; background: #fff; }
+    .al-filter-search { min-width: 200px; flex: 2; }
+
+    .al-btn-filter {
+        height: 34px;
+        padding: 0 16px;
+        border-radius: 8px;
+        background: #1D9E75;
+        color: #fff;
+        border: none;
+        font-size: 13px;
+        font-family: 'Sarabun', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        transition: background .15s;
+    }
+    .al-btn-filter:hover { background: #17856a; }
+    .al-btn-reset {
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 8px;
+        background: #fff;
+        color: #6b7280;
+        border: 0.5px solid rgba(0,0,0,0.15);
+        font-size: 13px;
+        font-family: 'Sarabun', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        transition: all .15s;
+    }
+    .al-btn-reset:hover { background: #f5f5f3; color: #1a1a18; }
+
+    /* ── Table card ── */
+    .al-card {
+        background: #fff;
+        border: 0.5px solid rgba(0,0,0,0.1);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .al-card-head {
+        padding: 14px 16px;
+        border-bottom: 0.5px solid rgba(0,0,0,0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .al-card-head-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .al-total-badge {
+        font-size: 11px;
+        color: #9ca3af;
+        font-weight: 400;
+    }
+    .al-table-wrap { overflow-x: auto; }
+    .al-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .al-table th {
+        padding: 10px 14px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        background: #fafafa;
+        border-bottom: 0.5px solid rgba(0,0,0,0.08);
+        white-space: nowrap;
+    }
+    .al-table td {
+        padding: 10px 14px;
+        border-bottom: 0.5px solid rgba(0,0,0,0.06);
+        color: #374151;
+        vertical-align: middle;
+    }
+    .al-table tr:last-child td { border-bottom: none; }
+    .al-table tr:hover td { background: #fafafa; }
+
+    /* ── Badges ── */
+    .al-action-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 99px;
+        font-size: 11.5px;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    .badge-create  { background:#E1F5EE; color:#0F6E56; }
+    .badge-update, .badge-approve  { background:#EFF6FF; color:#1D4ED8; }
+    .badge-delete, .badge-softdelete, .badge-cancel { background:#FEF2F2; color:#DC2626; }
+    .badge-login, .badge-logout, .badge-upgrade { background:#F5F3FF; color:#7C3AED; }
+    .badge-default { background:#F3F4F6; color:#6B7280; }
+
+    .al-entity-badge {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 6px;
+        font-size: 11.5px;
+        background: #F3F4F6;
+        color: #374151;
+        font-weight: 500;
+    }
+
+    /* ── Detail ── */
+    .al-detail {
+        max-width: 360px;
+        color: #6b7280;
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .al-detail:hover {
+        white-space: normal;
+        overflow: visible;
+        word-break: break-word;
+    }
+
+    /* ── Date ── */
+    .al-date { font-size: 12px; color: #9ca3af; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+    /* ── User cell ── */
+    .al-user { display: flex; align-items: center; gap: 7px; }
+    .al-user-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #E1F5EE;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        color: #0F6E56;
+        flex-shrink: 0;
+    }
+    .al-user-name { font-size: 13px; color: #1a1a18; font-weight: 500; }
+
+    /* ── Empty state ── */
+    .al-empty {
+        padding: 48px 24px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 13px;
+    }
+    .al-empty i { font-size: 32px; display: block; margin-bottom: 8px; opacity: .4; }
+
+    /* ── Pagination ── */
+    .al-pagination {
+        padding: 12px 16px;
+        border-top: 0.5px solid rgba(0,0,0,0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .al-pagination-info { font-size: 12px; color: #9ca3af; }
+    .al-pag-btns { display: flex; gap: 6px; }
+    .al-pag-btn {
+        height: 30px;
+        min-width: 30px;
+        padding: 0 8px;
+        border-radius: 6px;
+        border: 0.5px solid rgba(0,0,0,0.15);
+        background: #fff;
+        font-size: 12px;
+        color: #374151;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Sarabun', sans-serif;
+        transition: all .12s;
+    }
+    .al-pag-btn:hover:not(:disabled) { background: #f5f5f3; color: #1a1a18; }
+    .al-pag-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .al-pag-btn.active { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+
+    @@media (max-width: 768px) {
+        .al-filter-group { min-width: 100%; }
+        .al-detail { max-width: 160px; }
+    }
+</style>
+
+<div class="pooc-body">
+
+    <!-- Header -->
+    <div class="al-header">
+        <div class="al-title">
+            <i class="ti ti-shield-search"></i>
+            Audit Log
+        </div>
+        <div style="font-size:12px;color:#9ca3af;">บันทึกการกระทำทั้งหมดในระบบ</div>
+    </div>
+
+    <!-- Filters -->
+    <div class="al-filters">
+        <div class="al-filter-group al-filter-search">
+            <label>ค้นหา</label>
+            <input type="text" id="filterSearch" placeholder="ผู้ใช้, action, รายละเอียด…" />
+        </div>
+        <div class="al-filter-group">
+            <label>Action</label>
+            <select id="filterAction">
+                <option value="">ทั้งหมด</option>
+            </select>
+        </div>
+        <div class="al-filter-group">
+            <label>Entity</label>
+            <select id="filterEntity">
+                <option value="">ทั้งหมด</option>
+            </select>
+        </div>
+        <div class="al-filter-group">
+            <label>จากวันที่</label>
+            <input type="date" id="filterFrom" />
+        </div>
+        <div class="al-filter-group">
+            <label>ถึงวันที่</label>
+            <input type="date" id="filterTo" />
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end;padding-bottom:0">
+            <button class="al-btn-filter" onclick="loadLogs(1)">
+                <i class="ti ti-filter"></i> กรอง
+            </button>
+            <button class="al-btn-reset" onclick="resetFilters()">
+                <i class="ti ti-x"></i> ล้าง
+            </button>
+        </div>
+    </div>
+
+    <!-- Table card -->
+    <div class="al-card">
+        <div class="al-card-head">
+            <div class="al-card-head-title">
+                <i class="ti ti-list-details" style="color:#9ca3af"></i>
+                รายการ Log
+                <span class="al-total-badge" id="totalBadge"></span>
+            </div>
+            <div style="font-size:11px;color:#d1d5db">เรียงจากล่าสุด</div>
+        </div>
+
+        <div class="al-table-wrap">
+            <table class="al-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>วันที่ / เวลา</th>
+                        <th>ผู้ใช้</th>
+                        <th>Action</th>
+                        <th>Entity</th>
+                        <th>ID</th>
+                        <th>รายละเอียด</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                    <tr>
+                        <td colspan="7" class="al-empty">
+                            <i class="ti ti-loader ti-spin"></i>กำลังโหลด…
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="al-pagination" id="paginationBar" style="display:none">
+            <div class="al-pagination-info" id="pagInfo"></div>
+            <div class="al-pag-btns" id="pagBtns"></div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+    var currentPage = 1;
+    var pageSize = 50;
+
+    // ── โหลด filter options ──
+    fetch('/AuditLog/FilterOptions')
+        .then(r => r.json())
+        .then(data => {
+            var actSel = document.getElementById('filterAction');
+            data.actions.forEach(function(a) {
+                var opt = document.createElement('option');
+                opt.value = a; opt.textContent = a;
+                actSel.appendChild(opt);
+            });
+            var entSel = document.getElementById('filterEntity');
+            data.entities.forEach(function(e) {
+                var opt = document.createElement('option');
+                opt.value = e; opt.textContent = e;
+                entSel.appendChild(opt);
+            });
+        });
+
+    // ── Enter key ใน search ──
+    document.getElementById('filterSearch').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') loadLogs(1);
+    });
+
+    // ── โหลดตาราง ──
+    function loadLogs(page) {
+        currentPage = page || 1;
+        var params = new URLSearchParams({
+            page: currentPage,
+            pageSize: pageSize,
+            search:   document.getElementById('filterSearch').value.trim(),
+            action:   document.getElementById('filterAction').value,
+            entity:   document.getElementById('filterEntity').value,
+            fromDate: document.getElementById('filterFrom').value,
+            toDate:   document.getElementById('filterTo').value
+        });
+
+        var tbody = document.getElementById('logTableBody');
+        tbody.innerHTML = '<tr><td colspan="7" class="al-empty"><i class="ti ti-loader ti-spin"></i> กำลังโหลด…</td></tr>';
+
+        fetch('/AuditLog/List?' + params.toString())
+            .then(r => r.json())
+            .then(function(data) {
+                document.getElementById('totalBadge').textContent = data.total + ' รายการ';
+
+                if (!data.items.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="al-empty"><i class="ti ti-clipboard-off"></i>ไม่พบข้อมูล</td></tr>';
+                    document.getElementById('paginationBar').style.display = 'none';
+                    return;
+                }
+
+                var offset = (currentPage - 1) * pageSize;
+                tbody.innerHTML = data.items.map(function(row, idx) {
+                    var initial = (row.userName || '?')[0].toUpperCase();
+                    return '<tr>' +
+                        '<td style="color:#d1d5db;font-size:12px">' + (offset + idx + 1) + '</td>' +
+                        '<td class="al-date">' + row.createdDate + '</td>' +
+                        '<td>' +
+                            '<div class="al-user">' +
+                                '<div class="al-user-avatar">' + initial + '</div>' +
+                                '<span class="al-user-name">' + escHtml(row.userName) + '</span>' +
+                            '</div>' +
+                        '</td>' +
+                        '<td>' + actionBadge(row.action) + '</td>' +
+                        '<td><span class="al-entity-badge">' + escHtml(row.entityName) + '</span></td>' +
+                        '<td style="color:#9ca3af;font-size:12px">' + (row.entityId ?? '—') + '</td>' +
+                        '<td><div class="al-detail" title="' + escHtml(row.detail || '') + '">' + escHtml(row.detail || '—') + '</div></td>' +
+                        '</tr>';
+                }).join('');
+
+                renderPagination(data);
+            })
+            .catch(function() {
+                tbody.innerHTML = '<tr><td colspan="7" class="al-empty"><i class="ti ti-alert-triangle"></i> โหลดข้อมูลไม่สำเร็จ</td></tr>';
+            });
+    }
+
+    function actionBadge(action) {
+        var a = (action || '').toLowerCase();
+        var cls = 'badge-default';
+        if (a === 'create' || a === 'import' || a === 'add')                                cls = 'badge-create';
+        else if (a === 'update' || a === 'approve' || a === 'setrole' || a === 'updateuser' || a === 'closeearly') cls = 'badge-update';
+        else if (a === 'softdelete' || a === 'delete' || a === 'cancel')                    cls = 'badge-delete';
+        else if (a === 'login' || a === 'logout' || a === 'upgradepasswordhash' || a === 'resetpassword') cls = 'badge-login';
+        return '<span class="al-action-badge ' + cls + '">' + escHtml(action) + '</span>';
+    }
+
+    function renderPagination(data) {
+        var bar = document.getElementById('paginationBar');
+        if (data.totalPages <= 1) { bar.style.display = 'none'; return; }
+        bar.style.display = 'flex';
+
+        var start = (data.page - 1) * data.pageSize + 1;
+        var end   = Math.min(data.page * data.pageSize, data.total);
+        document.getElementById('pagInfo').textContent = start + '–' + end + ' จาก ' + data.total + ' รายการ';
+
+        var btns = '';
+        btns += '<button class="al-pag-btn" onclick="loadLogs(1)" ' + (data.page <= 1 ? 'disabled' : '') + '><i class="ti ti-chevrons-left"></i></button>';
+        btns += '<button class="al-pag-btn" onclick="loadLogs(' + (data.page - 1) + ')" ' + (data.page <= 1 ? 'disabled' : '') + '><i class="ti ti-chevron-left"></i></button>';
+
+        // แสดงปุ่ม page ใกล้ๆ
+        var from = Math.max(1, data.page - 2);
+        var to   = Math.min(data.totalPages, data.page + 2);
+        if (from > 1) btns += '<span class="al-pag-btn" style="pointer-events:none;border:none;color:#d1d5db">…</span>';
+        for (var p = from; p <= to; p++) {
+            btns += '<button class="al-pag-btn' + (p === data.page ? ' active' : '') + '" onclick="loadLogs(' + p + ')">' + p + '</button>';
+        }
+        if (to < data.totalPages) btns += '<span class="al-pag-btn" style="pointer-events:none;border:none;color:#d1d5db">…</span>';
+
+        btns += '<button class="al-pag-btn" onclick="loadLogs(' + (data.page + 1) + ')" ' + (data.page >= data.totalPages ? 'disabled' : '') + '><i class="ti ti-chevron-right"></i></button>';
+        btns += '<button class="al-pag-btn" onclick="loadLogs(' + data.totalPages + ')" ' + (data.page >= data.totalPages ? 'disabled' : '') + '><i class="ti ti-chevrons-right"></i></button>';
+
+        document.getElementById('pagBtns').innerHTML = btns;
+    }
+
+    function resetFilters() {
+        document.getElementById('filterSearch').value = '';
+        document.getElementById('filterAction').value = '';
+        document.getElementById('filterEntity').value = '';
+        document.getElementById('filterFrom').value = '';
+        document.getElementById('filterTo').value = '';
+        loadLogs(1);
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // โหลดทันทีที่เปิดหน้า
+    loadLogs(1);
+</script>
+}

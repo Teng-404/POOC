@@ -1,8 +1,10 @@
 @{
-    var currentUserName = User.Identity?.Name ?? "Admin";
+    var currentUserName    = User.Identity?.Name ?? "Admin";
     var currentUserInitial = currentUserName.Length > 0 ? currentUserName.Substring(0, 1).ToUpper() : "A";
-    var isUserPage = ViewContext.RouteData.Values["controller"]?.ToString() == "User";
-    var isAdmin = User.FindFirst("IsAdmin")?.Value == "true";
+    var isAdmin            = User.FindFirst("IsAdmin")?.Value == "true";
+    var _ctrl              = ViewContext.RouteData.Values["controller"]?.ToString();
+    var isUserPage         = _ctrl == "User";
+    var isAuditLogPage     = _ctrl == "AuditLog";
 }
 <!DOCTYPE html>
 <html lang="th">
@@ -443,6 +445,11 @@
                                asp-controller="User" asp-action="Index" onclick="poocCloseDrop()">
                                 <i class="ti ti-users" aria-hidden="true"></i>
                                 จัดการผู้ใช้งาน
+                            </a>
+                            <a class="pooc-drop-item @(isAuditLogPage ? "active" : "")"
+                               asp-controller="AuditLog" asp-action="Index" onclick="poocCloseDrop()">
+                                <i class="ti ti-shield-search" aria-hidden="true"></i>
+                                Audit Log
                             </a>
                         }
                     </div>
