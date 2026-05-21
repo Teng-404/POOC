@@ -10,7 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ใช้ SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite("Data Source=loan_data.db"));
+    options.UseSqlite("Data Source=loan_data.db")
+           .LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information)
+           .EnableSensitiveDataLogging());
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

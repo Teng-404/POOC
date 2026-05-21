@@ -167,9 +167,9 @@
         white-space: nowrap;
     }
     .badge-create  { background:#E1F5EE; color:#0F6E56; }
-    .badge-update, .badge-approve  { background:#EFF6FF; color:#1D4ED8; }
-    .badge-delete, .badge-softdelete, .badge-cancel { background:#FEF2F2; color:#DC2626; }
-    .badge-login, .badge-logout, .badge-upgrade { background:#F5F3FF; color:#7C3AED; }
+    .badge-update  { background:#EFF6FF; color:#1D4ED8; }
+    .badge-delete  { background:#FEF2F2; color:#DC2626; }
+    .badge-login   { background:#F5F3FF; color:#7C3AED; }
     .badge-default { background:#F3F4F6; color:#6B7280; }
 
     .al-entity-badge {
@@ -385,13 +385,13 @@
     function loadLogs(page) {
         currentPage = page || 1;
         var params = new URLSearchParams({
-            page: currentPage,
-            pageSize: pageSize,
-            search:   document.getElementById('filterSearch').value.trim(),
-            action:   document.getElementById('filterAction').value,
-            entity:   document.getElementById('filterEntity').value,
-            fromDate: document.getElementById('filterFrom').value,
-            toDate:   document.getElementById('filterTo').value
+            page:         currentPage,
+            pageSize:     pageSize,
+            search:       document.getElementById('filterSearch').value.trim(),
+            actionFilter: document.getElementById('filterAction').value,
+            entity:       document.getElementById('filterEntity').value,
+            fromDate:     document.getElementById('filterFrom').value,
+            toDate:       document.getElementById('filterTo').value
         });
 
         var tbody = document.getElementById('logTableBody');
@@ -402,7 +402,7 @@
             .then(function(data) {
                 document.getElementById('totalBadge').textContent = data.total + ' รายการ';
 
-                if (!data.items.length) {
+                if (!data.items || !data.items.length) {
                     tbody.innerHTML = '<tr><td colspan="7" class="al-empty"><i class="ti ti-clipboard-off"></i>ไม่พบข้อมูล</td></tr>';
                     document.getElementById('paginationBar').style.display = 'none';
                     return;
@@ -437,10 +437,14 @@
     function actionBadge(action) {
         var a = (action || '').toLowerCase();
         var cls = 'badge-default';
-        if (a === 'create' || a === 'import' || a === 'add')                                cls = 'badge-create';
-        else if (a === 'update' || a === 'approve' || a === 'setrole' || a === 'updateuser' || a === 'closeearly') cls = 'badge-update';
-        else if (a === 'softdelete' || a === 'delete' || a === 'cancel')                    cls = 'badge-delete';
-        else if (a === 'login' || a === 'logout' || a === 'upgradepasswordhash' || a === 'resetpassword') cls = 'badge-login';
+        if (a === 'create' || a === 'import' || a === 'add' || a === 'createuser')
+            cls = 'badge-create';
+        else if (a === 'update' || a === 'approve' || a === 'setrole' || a === 'updateuser' || a === 'closeearly' || a === 'changepassword' || a === 'upgradepasswordhash' || a === 'resetpassword')
+            cls = 'badge-update';
+        else if (a === 'softdelete' || a === 'delete' || a === 'cancel')
+            cls = 'badge-delete';
+        else if (a === 'login' || a === 'logout')
+            cls = 'badge-login';
         return '<span class="al-action-badge ' + cls + '">' + escHtml(action) + '</span>';
     }
 
@@ -457,7 +461,6 @@
         btns += '<button class="al-pag-btn" onclick="loadLogs(1)" ' + (data.page <= 1 ? 'disabled' : '') + '><i class="ti ti-chevrons-left"></i></button>';
         btns += '<button class="al-pag-btn" onclick="loadLogs(' + (data.page - 1) + ')" ' + (data.page <= 1 ? 'disabled' : '') + '><i class="ti ti-chevron-left"></i></button>';
 
-        // แสดงปุ่ม page ใกล้ๆ
         var from = Math.max(1, data.page - 2);
         var to   = Math.min(data.totalPages, data.page + 2);
         if (from > 1) btns += '<span class="al-pag-btn" style="pointer-events:none;border:none;color:#d1d5db">…</span>';
