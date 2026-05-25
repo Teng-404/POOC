@@ -8,11 +8,13 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using POOC.Helpers;
+using System.Globalization;
 
 [Authorize]
 public class LoanController : Controller
 {
     private readonly ApplicationDbContext _context;
+    private static readonly CultureInfo ThaiCulture = new("th-TH");
 
     private List<LoanSchedule> CalculateLoan(double amount, double rate, int months)
     {
@@ -418,131 +420,382 @@ public class LoanController : Controller
             })
         }));
     }
+    [HttpGet]
     public IActionResult DownloadContract(int loanId)
     {
         var loan = _context.Loans
             .Include(x => x.Member)
             .Include(x => x.LoanDetails)
             .FirstOrDefault(x => x.Id == loanId);
- 
+
         if (loan == null) return NotFound();
- 
+
+        var schedule   = loan.LoanDetails.OrderBy(d => d.Installment).ToList();
+        var memberName = $"{loan.Member?.FirstName} {loan.Member?.LastName}".Trim();
+        var docNo      = $"LN-{loan.Id:D5}";
+        var dateStr    = loan.CreatedDate.ToString("dd MMMM yyyy", ThaiCulture);
+        var memberId   = loan.Member != null ? $"M-{loan.Member.Id:D5}" : "-";
+        var guarantor  = string.IsNullOrWhiteSpace(loan.GuarantorName)
+                         ? "......................................................" : loan.GuarantorName;
+        var guarPhone  = string.IsNullOrWhiteSpace(loan.GuarantorPhone) ? "-" : loan.GuarantorPhone;
+        var guarAddr   = string.IsNullOrWhiteSpace(loan.GuarantorAddress)
+                         ? "......................................................" : loan.GuarantorAddress;
+        var startDue   = new DateTime(loan.CreatedDate.Year, loan.CreatedDate.Month, 1).AddMonths(1);
+
+        double totalPrincipal = schedule.Sum(d => d.Principal);
+        double totalInterest  = schedule.Sum(d => d.Interest);
+        double totalPayment   = schedule.Sum(d => d.Payment);
+        double firstPayment   = schedule.FirstOrDefault()?.Payment ?? 0;
+
+        // ── design tokens (ขาวดำ สไตล์ราชการ) ───────────────────────────────
+        const float FS_TITLE  = 15f;
+        const float FS_BODY   = 10.5f;
+        const float FS_SMALL  = 9.5f;
+        const float FS_TABLE  = 9f;
+        const float FS_FOOTER = 8f;
+        const string INK   = "#1A1A1A";
+        const string LABEL = "#555555";
+        const string RULE  = "#999999";
+        const string ROWALT = "#F8F8F8";
+
         var document = Document.Create(container =>
         {
             container.Page(page =>
             {
-                // [Step 3] ใช้ค่ามาตรฐานจาก PdfDocumentBase
                 page.Size(PageSizes.A4);
-                page.Margin(PdfDocumentBase.MarginCm, Unit.Centimetre);
+                page.MarginLeft(2.5f,   Unit.Centimetre);
+                page.MarginRight(1.8f,  Unit.Centimetre);
+                page.MarginTop(1.8f,    Unit.Centimetre);
+                page.MarginBottom(2.0f, Unit.Centimetre);
                 page.DefaultTextStyle(x =>
                     x.FontFamily(PdfDocumentBase.DefaultFont)
-                     .FontSize(PdfDocumentBase.DefaultFontSize)
-                     .LineHeight(1.5f));
- 
-                // 1. Header
-                page.Header().Column(col =>
+                     .FontSize(FS_BODY)
+                     .FontColor(INK)
+                     .LineHeight(1.55f));
+
+                // ── Footer ────────────────────────────────────────────────
+                page.Footer()
+                    .BorderTop(0.4f).BorderColor(RULE)
+                    .PaddingTop(3)
+                    .Row(row =>
+                    {
+                        row.RelativeItem()
+                           .Text("ระบบบริหารจัดการกองทุน POOC  \u2014  เอกสารพิมพ์จากระบบอัตโนมัติ")
+                           .FontSize(FS_FOOTER).FontColor(LABEL);
+                        row.ConstantItem(40).AlignRight()
+                           .Text(t =>
+                           {
+                               t.Span("หน้า ").FontSize(FS_FOOTER).FontColor(LABEL);
+                               t.CurrentPageNumber().FontSize(FS_FOOTER).FontColor(LABEL);
+                           });
+                    });
+
+                // ── Content ───────────────────────────────────────────────
+                page.Content().Column(col =>
                 {
-                    col.Item().AlignCenter().Text("หนังสือสัญญากู้ยืมเงิน").FontSize(18).SemiBold();
-                    col.Item().AlignRight().Text("ทำที่: ระบบบริหารจัดการเงินกู้ POOC").FontSize(10);
-                    col.Item().AlignRight()
-                       .Text($"วันที่ทำสัญญา: {loan.CreatedDate.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))}")
-                       .FontSize(10);
-                });
- 
-                // 2. Content
-                page.Content().PaddingVertical(10).Column(col =>
-                {
-                    // ข้อมูลคู่สัญญา
+                    // ══ ❶ หัวกระดาษ ════════════════════════════════════
+                    col.Item().AlignCenter()
+                       .Text("หนังสือสัญญากู้ยืมเงิน")
+                       .FontSize(FS_TITLE).Bold().FontColor(Colors.Black);
+
+                    col.Item().PaddingTop(4)
+                       .BorderBottom(1.2f).BorderColor(Colors.Black);
+                    col.Item().PaddingTop(2)
+                       .BorderBottom(0.4f).BorderColor(Colors.Black);
+                    col.Item().PaddingTop(5);
+
+                    // เลขที่ / วันที่ / สถานที่
+                    col.Item().Row(row =>
+                    {
+                        ContractFieldCell(row.RelativeItem(), "เลขที่",   docNo,   FS_SMALL, LABEL);
+                        ContractFieldCell(row.RelativeItem(), "วันที่",   dateStr, FS_SMALL, LABEL);
+                        ContractFieldCell(row.RelativeItem(), "สถานที่",
+                            "กองทุนสวัสดิการ POOC",              FS_SMALL, LABEL);
+                    });
+
+                    col.Item().PaddingTop(8);
+
+                    // ══ ❷ ข้อความนำ ════════════════════════════════════
                     col.Item().Text(t =>
                     {
-                        t.Span("สัญญาฉบับนี้ทำขึ้นระหว่าง ");
-                        t.Span($"{loan.Member?.FirstName} {loan.Member?.LastName}").SemiBold();
-                        t.Span(" ซึ่งต่อไปนี้ในสัญญาเรียกว่า \"ผู้กู้\" ฝ่ายหนึ่ง กับ ");
-                        t.Span("ระบบกองทุน POOC").SemiBold();
-                        t.Span(" ซึ่งต่อไปนี้เรียกว่า \"ผู้ให้กู้\" อีกฝ่ายหนึ่ง ทั้งสองฝ่ายตกลงทำสัญญามีข้อความดังต่อไปนี้");
+                        t.Span("\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0");
+                        t.Span("หนังสือสัญญาฉบับนี้ทำขึ้น ณ ที่ทำการกองทุนสวัสดิการ POOC ");
+                        t.Span("ระหว่าง กองทุนสวัสดิการองค์กร ซึ่งต่อไปเรียกว่า \u201cผู้ให้กู้\u201d ฝ่ายหนึ่ง ");
+                        t.Span("กับ ");
+                        t.Span(memberName).Bold();
+                        t.Span($" รหัสสมาชิก {memberId} ");
+                        t.Span("ซึ่งต่อไปเรียกว่า \u201cผู้กู้\u201d อีกฝ่ายหนึ่ง ");
+                        t.Span("โดยคู่สัญญาทั้งสองฝ่ายตกลงทำสัญญากันมีข้อความดังต่อไปนี้");
                     });
- 
-                    // รายละเอียดเงินกู้
-                    col.Item().PaddingTop(5).PaddingLeft(20).Column(c =>
+
+                    col.Item().PaddingTop(8);
+
+                    // ══ ❸ ข้อมูลคู่สัญญา ═══════════════════════════════
+                    col.Item().Row(row =>
                     {
-                        c.Item().Text($"ข้อ 1. ผู้กู้ได้กู้ยืมเงินจากผู้ให้กู้เป็นจำนวนเงิน {loan.Amount:N2} บาท");
-                        c.Item().Text($"ข้อ 2. ผู้กู้ตกลงยินยอมเสียดอกเบี้ยให้แก่ผู้ให้กู้ในอัตราร้อยละ {loan.Rate}% ต่อปี");
-                        c.Item().Text($"ข้อ 3. ผู้กู้ตกลงจะชำระคืนเงินต้นพร้อมดอกเบี้ยรวมทั้งสิ้น {loan.Months} งวด ตามตารางแนบท้ายสัญญานี้");
-                        c.Item().Text($"ข้อ 4. ผู้ค้ำประกัน: {(string.IsNullOrWhiteSpace(loan.GuarantorName) ? "-" : loan.GuarantorName)} โทร. {(string.IsNullOrWhiteSpace(loan.GuarantorPhone) ? "-" : loan.GuarantorPhone)}");
+                        ContractFieldCell(row.RelativeItem(3), "ชื่อผู้กู้",   memberName, FS_BODY, LABEL);
+                        ContractFieldCell(row.RelativeItem(2), "รหัสสมาชิก",  memberId,   FS_BODY, LABEL);
                     });
- 
-                    // ตารางงวดชำระ
-                    col.Item().PaddingTop(15).Text("ตารางรายละเอียดการชำระเงินแนบท้ายสัญญา").SemiBold();
+                    col.Item().PaddingTop(3);
+                    col.Item().Row(row =>
+                    {
+                        ContractFieldCell(row.RelativeItem(3), "ตำแหน่ง",
+                            loan.Member?.Role ?? "..............................", FS_BODY, LABEL);
+                        ContractFieldCell(row.RelativeItem(2), "เบอร์โทร",
+                            loan.Member?.Phone ?? "..............................", FS_BODY, LABEL);
+                    });
+                    col.Item().PaddingTop(3);
+                    col.Item().Row(r =>
+                    {
+                        r.AutoItem().PaddingRight(3)
+                         .Text("ที่อยู่\u00a0").FontSize(FS_SMALL).FontColor(LABEL);
+                        r.RelativeItem()
+                         .BorderBottom(0.4f).BorderColor(LABEL)
+                         .Text(loan.Member?.Address ?? "......................................................................")
+                         .FontSize(FS_BODY).Bold();
+                    });
+                    col.Item().PaddingTop(3);
+                    col.Item().Row(row =>
+                    {
+                        ContractFieldCell(row.RelativeItem(3), "ผู้ค้ำประกัน", guarantor,  FS_BODY, LABEL);
+                        ContractFieldCell(row.RelativeItem(2), "เบอร์โทร",     guarPhone,  FS_BODY, LABEL);
+                    });
+                    col.Item().PaddingTop(3);
+                    col.Item().Row(r =>
+                    {
+                        r.AutoItem().PaddingRight(3)
+                         .Text("ที่อยู่ผู้ค้ำ\u00a0").FontSize(FS_SMALL).FontColor(LABEL);
+                        r.RelativeItem()
+                         .BorderBottom(0.4f).BorderColor(LABEL)
+                         .Text(guarAddr)
+                         .FontSize(FS_BODY).Bold();
+                    });
+
+                    col.Item().PaddingTop(8)
+                       .BorderBottom(0.3f).BorderColor(RULE);
+                    col.Item().PaddingTop(6);
+
+                    // ══ ❹ ข้อกำหนด ════════════════════════════════════
+                    ContractClause(col, "ข้อ ๑.",
+                        $"ผู้กู้ได้กู้ยืมเงินจากผู้ให้กู้ เป็นจำนวนเงิน {loan.Amount:N2} บาท " +
+                        "โดยผู้ให้กู้ได้ส่งมอบเงินให้แก่ผู้กู้ครบถ้วนแล้วในวันทำสัญญานี้",
+                        FS_BODY);
+
+                    ContractClause(col, "ข้อ ๒.",
+                        $"ผู้กู้ตกลงชำระคืนเงินต้นพร้อมดอกเบี้ยในอัตรา ร้อยละ {loan.Rate:N2} ต่อปี " +
+                        $"แบ่งชำระรายเดือน จำนวน {loan.Months} งวด งวดละ {firstPayment:N2} บาท " +
+                        $"เริ่มงวดแรกวันที่ {startDue.ToString("d MMMM yyyy", ThaiCulture)} " +
+                        "และชำระทุกวันที่ ๑ ของเดือนถัดไปจนครบตามตารางแนบท้ายสัญญา",
+                        FS_BODY);
+
+                    ContractClause(col, "ข้อ ๓.",
+                        "หากผู้กู้ผิดนัดชำระเกินกว่า ๓๐ วัน ผู้กู้ยินยอมให้คิดค่าปรับในอัตรา " +
+                        "ร้อยละ ๑.๕๐ ต่อเดือน ของยอดค้างชำระ " +
+                        "นับแต่วันครบกำหนดจนถึงวันชำระจริง",
+                        FS_BODY);
+
+                    ContractClause(col, "ข้อ ๔.",
+                        "ผู้ค้ำประกันยินยอมรับผิดร่วมกับผู้กู้อย่างลูกหนี้ร่วม " +
+                        "ผู้ให้กู้มีสิทธิ์เรียกให้ผู้ค้ำประกันชำระหนี้ก่อนหรือพร้อมกับผู้กู้ก็ได้",
+                        FS_BODY);
+
+                    ContractClause(col, "ข้อ ๕.",
+                        "ผู้ให้กู้มีสิทธิ์หักเงินเดือน สวัสดิการ หรือสิทธิประโยชน์ใดๆ ของผู้กู้ " +
+                        "เพื่อชำระหนี้ตามสัญญาฉบับนี้ " +
+                        "ผู้กู้ให้ความยินยอมไว้ล่วงหน้าด้วยการลงลายมือชื่อ",
+                        FS_BODY);
+
+                    ContractClause(col, "ข้อ ๖.",
+                        "สัญญาฉบับนี้ทำขึ้นสองฉบับ มีข้อความตรงกัน " +
+                        "คู่สัญญาแต่ละฝ่ายยึดถือฝ่ายละหนึ่งฉบับ " +
+                        "หากเกิดข้อพิพาทให้อยู่ภายใต้เขตอำนาจของศาลที่มีอำนาจและใช้กฎหมายไทยบังคับ",
+                        FS_BODY);
+
+                    col.Item().PaddingTop(5);
+                    col.Item().Text(t =>
+                    {
+                        t.Span("\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0");
+                        t.Span("คู่สัญญาทั้งสองฝ่ายได้อ่านและเข้าใจข้อความในสัญญาโดยตลอดแล้ว " +
+                               "จึงลงลายมือชื่อไว้เป็นสำคัญต่อหน้าพยาน");
+                    });
+
+                    col.Item().PaddingTop(10);
+
+                    // ══ ❺ ตารางผ่อนชำระ ════════════════════════════════
+                    col.Item().BorderTop(0.3f).BorderColor(RULE);
+                    col.Item().PaddingTop(5).AlignCenter()
+                       .Text($"ตารางการผ่อนชำระ  —  สัญญาเลขที่ {docNo}")
+                       .FontSize(FS_BODY + 0.5f).Bold();
+                    col.Item().AlignCenter()
+                       .Text($"วงเงิน {loan.Amount:N2} บาท  |  ดอกเบี้ย {loan.Rate:N2}% ต่อปี  |  {loan.Months} งวด")
+                       .FontSize(FS_SMALL).FontColor(LABEL);
                     col.Item().PaddingTop(5).Table(table =>
                     {
-                        table.ColumnsDefinition(columns =>
+                        table.ColumnsDefinition(c =>
                         {
-                            columns.ConstantColumn(40);
-                            columns.RelativeColumn();
-                            columns.RelativeColumn();
-                            columns.RelativeColumn();
-                            columns.RelativeColumn();
+                            c.ConstantColumn(28);
+                            c.RelativeColumn(1.4f);
+                            c.RelativeColumn(1.2f);
+                            c.RelativeColumn(1.1f);
+                            c.RelativeColumn(1.2f);
+                            c.RelativeColumn(1.4f);
                         });
- 
-                        table.Header(header =>
+
+                        table.Header(h =>
                         {
-                            var headerStyle = TextStyle.Default.SemiBold();
-                            header.Cell().Element(HeaderStyle).Text("งวดที่").Style(headerStyle);
-                            header.Cell().Element(HeaderStyle).Text("เงินต้น").Style(headerStyle);
-                            header.Cell().Element(HeaderStyle).Text("ดอกเบี้ย").Style(headerStyle);
-                            header.Cell().Element(HeaderStyle).Text("ยอดจ่าย").Style(headerStyle);
-                            header.Cell().Element(HeaderStyle).Text("คงเหลือ").Style(headerStyle);
- 
-                            static IContainer HeaderStyle(IContainer container) =>
-                                container.PaddingVertical(5).BorderBottom(1).AlignCenter();
+                            static IContainer Hdr(IContainer c) =>
+                                c.BorderBottom(0.6f).BorderColor(Colors.Black)
+                                 .BorderTop(0.6f).BorderColor(Colors.Black)
+                                 .PaddingVertical(4).PaddingHorizontal(3);
+                            h.Cell().Element(Hdr).AlignCenter()
+                             .Text("งวดที่").FontSize(FS_TABLE).Bold();
+                            h.Cell().Element(Hdr).AlignCenter()
+                             .Text("วันครบกำหนด").FontSize(FS_TABLE).Bold();
+                            h.Cell().Element(Hdr).AlignRight()
+                             .Text("เงินต้น (บาท)").FontSize(FS_TABLE).Bold();
+                            h.Cell().Element(Hdr).AlignRight()
+                             .Text("ดอกเบี้ย (บาท)").FontSize(FS_TABLE).Bold();
+                            h.Cell().Element(Hdr).AlignRight()
+                             .Text("ยอดผ่อน (บาท)").FontSize(FS_TABLE).Bold();
+                            h.Cell().Element(Hdr).AlignRight()
+                             .Text("ยอดคงเหลือ (บาท)").FontSize(FS_TABLE).Bold();
                         });
- 
-                        foreach (var item in loan.LoanDetails.OrderBy(x => x.Installment))
+
+                        bool alt = false;
+                        foreach (var d in schedule)
                         {
-                            table.Cell().Element(ContentStyle).Text(item.Installment.ToString());
-                            table.Cell().Element(ContentStyle).Text(item.Principal.ToString("N2"));
-                            table.Cell().Element(ContentStyle).Text(item.Interest.ToString("N2"));
-                            table.Cell().Element(ContentStyle).Text(item.Payment.ToString("N2"));
-                            table.Cell().Element(ContentStyle).Text(item.Balance.ToString("N2"));
- 
-                            static IContainer ContentStyle(IContainer container) =>
-                                container.PaddingVertical(2).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3).AlignCenter();
+                            var dueDate = startDue.AddMonths(d.Installment - 1)
+                                                  .ToString("d MMM yyyy", ThaiCulture);
+                            string bg = alt ? ROWALT : Colors.White;
+                            alt = !alt;
+
+                            IContainer Cell(IContainer c) =>
+                                c.Background(bg)
+                                 .BorderBottom(0.3f).BorderColor(RULE)
+                                 .PaddingVertical(2.5f).PaddingHorizontal(3);
+
+                            table.Cell().Element(Cell).AlignCenter()
+                                 .Text(d.Installment.ToString()).FontSize(FS_TABLE);
+                            table.Cell().Element(Cell)
+                                 .Text(dueDate).FontSize(FS_TABLE);
+                            table.Cell().Element(Cell).AlignRight()
+                                 .Text(d.Principal.ToString("N2")).FontSize(FS_TABLE);
+                            table.Cell().Element(Cell).AlignRight()
+                                 .Text(d.Interest.ToString("N2")).FontSize(FS_TABLE);
+                            table.Cell().Element(Cell).AlignRight()
+                                 .Text(d.Payment.ToString("N2")).FontSize(FS_TABLE);
+                            table.Cell().Element(Cell).AlignRight()
+                                 .Text(d.Balance.ToString("N2")).FontSize(FS_TABLE);
                         }
+
+                        // แถวรวม
+                        IContainer TotalCell(IContainer c) =>
+                            c.BorderTop(0.6f).BorderColor(Colors.Black)
+                             .BorderBottom(0.6f).BorderColor(Colors.Black)
+                             .PaddingVertical(4).PaddingHorizontal(3);
+
+                        table.Cell().Element(TotalCell).AlignCenter()
+                             .Text("รวม").FontSize(FS_TABLE).Bold();
+                        table.Cell().Element(TotalCell);
+                        table.Cell().Element(TotalCell).AlignRight()
+                             .Text(totalPrincipal.ToString("N2")).FontSize(FS_TABLE).Bold();
+                        table.Cell().Element(TotalCell).AlignRight()
+                             .Text(totalInterest.ToString("N2")).FontSize(FS_TABLE).Bold();
+                        table.Cell().Element(TotalCell).AlignRight()
+                             .Text(totalPayment.ToString("N2")).FontSize(FS_TABLE).Bold();
+                        table.Cell().Element(TotalCell).AlignRight()
+                             .Text("\u2014").FontSize(FS_TABLE).Bold();
                     });
- 
-                    // ส่วนลงชื่อ
-                    col.Item().PaddingTop(40).Row(row =>
+
+                    col.Item().PaddingTop(10);
+
+                    // ══ ❻ ลายเซ็น ════════════════════════════════════
+                    col.Item().Row(row =>
                     {
-                        row.RelativeItem().Column(c =>
-                        {
-                            c.Item().AlignCenter().Text("ลงชื่อ......................................................");
-                            c.Item().PaddingTop(2).AlignCenter().Text($"( {loan.Member?.FirstName} {loan.Member?.LastName} )");
-                            c.Item().AlignCenter().Text("ผู้กู้");
-                        });
- 
-                        row.RelativeItem().Column(c =>
-                        {
-                            c.Item().AlignCenter().Text("ลงชื่อ......................................................");
-                            c.Item().PaddingTop(2).AlignCenter()
-                               .Text($"( {(string.IsNullOrWhiteSpace(loan.GuarantorName) ? "......................................................" : loan.GuarantorName)} )");
-                            c.Item().AlignCenter().Text("ผู้ค้ำประกัน");
-                        });
- 
-                        row.RelativeItem().Column(c =>
-                        {
-                            c.Item().AlignCenter().Text("ลงชื่อ......................................................");
-                            c.Item().PaddingTop(2).AlignCenter().Text("( ...................................................... )");
-                            c.Item().AlignCenter().Text("ผู้ให้กู้ / พยาน");
-                        });
+                        ContractSigCol(row.RelativeItem(), memberName,
+                            "ผู้กู้", null, FS_SMALL, LABEL);
+                        ContractSigCol(row.RelativeItem(), guarantor,
+                            "ผู้ค้ำประกัน", null, FS_SMALL, LABEL);
+                        ContractSigCol(row.RelativeItem(), null,
+                            "ผู้ให้กู้", "ผู้มีอำนาจลงนาม", FS_SMALL, LABEL);
                     });
+
+                    col.Item().PaddingTop(8)
+                       .BorderTop(0.3f).BorderColor(RULE);
+                    col.Item().PaddingTop(3)
+                       .Text("พยาน").FontSize(FS_SMALL).FontColor(LABEL);
+                    col.Item().PaddingTop(4).Row(row =>
+                    {
+                        ContractSigCol(row.RelativeItem(), null,
+                            "พยานที่ ๑", null, FS_SMALL, LABEL);
+                        row.ConstantItem(20);
+                        ContractSigCol(row.RelativeItem(), null,
+                            "พยานที่ ๒", null, FS_SMALL, LABEL);
+                        row.RelativeItem();
+                    });
+
+                    col.Item().PaddingTop(8)
+                       .BorderTop(0.3f).BorderColor(RULE);
+                    col.Item().PaddingTop(4).AlignCenter()
+                       .Text("สัญญาฉบับนี้ทำขึ้นเป็นสองฉบับ มีข้อความถูกต้องตรงกัน " +
+                             "คู่สัญญาแต่ละฝ่ายได้รับไปยึดถือไว้ฝ่ายละหนึ่งฉบับ")
+                       .FontSize(FS_SMALL).FontColor(LABEL);
                 });
- 
-                // [Step 3] เพิ่ม footer มาตรฐาน
-                PdfDocumentBase.ApplyStandardFooter(page);
             });
         });
- 
+
         return File(document.GeneratePdf(), "application/pdf", $"Contract_{loanId}.pdf");
+    }
+
+    // ── helpers สำหรับ DownloadContract ──────────────────────────────────────
+
+    /// <summary>ช่องข้อมูล inline: label + เส้นใต้ + value</summary>
+    private static void ContractFieldCell(
+        IContainer container, string label, string value, float fs, string labelColor)
+    {
+        container.PaddingRight(8).Row(r =>
+        {
+            r.AutoItem().PaddingRight(3)
+             .Text(label).FontSize(fs - 1f).FontColor(labelColor);
+            r.RelativeItem()
+             .BorderBottom(0.4f).BorderColor(labelColor)
+             .Text(value).FontSize(fs).Bold();
+        });
+    }
+
+    /// <summary>ข้อกำหนด: เลขข้อ + ข้อความ Justify</summary>
+    private static void ContractClause(
+        ColumnDescriptor col, string num, string text, float fs)
+    {
+        col.Item().PaddingVertical(1.5f).Row(r =>
+        {
+            r.ConstantItem(42).Text(num).FontSize(fs);
+            r.RelativeItem().Text(text).FontSize(fs);
+        });
+    }
+
+    /// <summary>คอลัมน์ลายเซ็น</summary>
+    private static void ContractSigCol(
+        IContainer container, string? name,
+        string role1, string? role2, float fs, string labelColor)
+    {
+        container.Column(c =>
+        {
+            c.Item().AlignCenter()
+             .Text("ลงชื่อ ..........................................")
+             .FontSize(fs);
+            c.Item().AlignCenter()
+             .Text($"( {(string.IsNullOrWhiteSpace(name) ? "......................................................" : name)} )")
+             .FontSize(fs);
+            c.Item().AlignCenter()
+             .Text(role1).FontSize(fs - 0.5f).FontColor(labelColor);
+            if (!string.IsNullOrWhiteSpace(role2))
+                c.Item().AlignCenter()
+                 .Text(role2).FontSize(fs - 0.5f).FontColor(labelColor);
+            c.Item().PaddingTop(5).AlignCenter()
+             .Text("วันที่ ......... เดือน .................. พ.ศ. ..........")
+             .FontSize(fs - 0.5f).FontColor(labelColor);
+        });
     }
     [HttpGet]
     public IActionResult GetOverdueSummary()
