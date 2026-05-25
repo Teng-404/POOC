@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using POOC.Helpers;
 
 [Authorize]
 public class LoanController : Controller
@@ -423,27 +424,32 @@ public class LoanController : Controller
             .Include(x => x.Member)
             .Include(x => x.LoanDetails)
             .FirstOrDefault(x => x.Id == loanId);
-
+ 
         if (loan == null) return NotFound();
-
+ 
         var document = Document.Create(container =>
         {
             container.Page(page =>
             {
-                // ตั้งค่าพื้นฐาน: ใช้ฟอนต์ที่ดูทางการ (ถ้ามีในระบบ) และขอบกระดาษที่เหมาะสม
+                // [Step 3] ใช้ค่ามาตรฐานจาก PdfDocumentBase
                 page.Size(PageSizes.A4);
-                page.Margin(1.5f, Unit.Centimetre);
-                page.DefaultTextStyle(x => x.FontFamily("TH Sarabun New").FontSize(11).LineHeight(1.5f));
-
-                // 1. Header: หัวเอกสาร
+                page.Margin(PdfDocumentBase.MarginCm, Unit.Centimetre);
+                page.DefaultTextStyle(x =>
+                    x.FontFamily(PdfDocumentBase.DefaultFont)
+                     .FontSize(PdfDocumentBase.DefaultFontSize)
+                     .LineHeight(1.5f));
+ 
+                // 1. Header
                 page.Header().Column(col =>
                 {
                     col.Item().AlignCenter().Text("หนังสือสัญญากู้ยืมเงิน").FontSize(18).SemiBold();
-                    col.Item().AlignRight().Text($"ทำที่: ระบบบริหารจัดการเงินกู้ POOC").FontSize(10);
-                    col.Item().AlignRight().Text($"วันที่ทำสัญญา: {loan.CreatedDate.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))}").FontSize(10);
+                    col.Item().AlignRight().Text("ทำที่: ระบบบริหารจัดการเงินกู้ POOC").FontSize(10);
+                    col.Item().AlignRight()
+                       .Text($"วันที่ทำสัญญา: {loan.CreatedDate.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))}")
+                       .FontSize(10);
                 });
-
-                // 2. Content: เนื้อความสัญญา
+ 
+                // 2. Content
                 page.Content().PaddingVertical(10).Column(col =>
                 {
                     // ข้อมูลคู่สัญญา
@@ -455,7 +461,7 @@ public class LoanController : Controller
                         t.Span("ระบบกองทุน POOC").SemiBold();
                         t.Span(" ซึ่งต่อไปนี้เรียกว่า \"ผู้ให้กู้\" อีกฝ่ายหนึ่ง ทั้งสองฝ่ายตกลงทำสัญญามีข้อความดังต่อไปนี้");
                     });
-
+ 
                     // รายละเอียดเงินกู้
                     col.Item().PaddingTop(5).PaddingLeft(20).Column(c =>
                     {
@@ -464,8 +470,8 @@ public class LoanController : Controller
                         c.Item().Text($"ข้อ 3. ผู้กู้ตกลงจะชำระคืนเงินต้นพร้อมดอกเบี้ยรวมทั้งสิ้น {loan.Months} งวด ตามตารางแนบท้ายสัญญานี้");
                         c.Item().Text($"ข้อ 4. ผู้ค้ำประกัน: {(string.IsNullOrWhiteSpace(loan.GuarantorName) ? "-" : loan.GuarantorName)} โทร. {(string.IsNullOrWhiteSpace(loan.GuarantorPhone) ? "-" : loan.GuarantorPhone)}");
                     });
-
-                    // 3. ตารางงวดชำระ
+ 
+                    // ตารางงวดชำระ
                     col.Item().PaddingTop(15).Text("ตารางรายละเอียดการชำระเงินแนบท้ายสัญญา").SemiBold();
                     col.Item().PaddingTop(5).Table(table =>
                     {
@@ -477,7 +483,7 @@ public class LoanController : Controller
                             columns.RelativeColumn();
                             columns.RelativeColumn();
                         });
-
+ 
                         table.Header(header =>
                         {
                             var headerStyle = TextStyle.Default.SemiBold();
@@ -486,11 +492,11 @@ public class LoanController : Controller
                             header.Cell().Element(HeaderStyle).Text("ดอกเบี้ย").Style(headerStyle);
                             header.Cell().Element(HeaderStyle).Text("ยอดจ่าย").Style(headerStyle);
                             header.Cell().Element(HeaderStyle).Text("คงเหลือ").Style(headerStyle);
-
-                            static IContainer HeaderStyle(IContainer container) => 
+ 
+                            static IContainer HeaderStyle(IContainer container) =>
                                 container.PaddingVertical(5).BorderBottom(1).AlignCenter();
                         });
-
+ 
                         foreach (var item in loan.LoanDetails.OrderBy(x => x.Installment))
                         {
                             table.Cell().Element(ContentStyle).Text(item.Installment.ToString());
@@ -498,13 +504,13 @@ public class LoanController : Controller
                             table.Cell().Element(ContentStyle).Text(item.Interest.ToString("N2"));
                             table.Cell().Element(ContentStyle).Text(item.Payment.ToString("N2"));
                             table.Cell().Element(ContentStyle).Text(item.Balance.ToString("N2"));
-
-                            static IContainer ContentStyle(IContainer container) => 
+ 
+                            static IContainer ContentStyle(IContainer container) =>
                                 container.PaddingVertical(2).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3).AlignCenter();
                         }
                     });
-
-                    // 4. ส่วนลงชื่อ 
+ 
+                    // ส่วนลงชื่อ
                     col.Item().PaddingTop(40).Row(row =>
                     {
                         row.RelativeItem().Column(c =>
@@ -513,14 +519,15 @@ public class LoanController : Controller
                             c.Item().PaddingTop(2).AlignCenter().Text($"( {loan.Member?.FirstName} {loan.Member?.LastName} )");
                             c.Item().AlignCenter().Text("ผู้กู้");
                         });
-
+ 
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().AlignCenter().Text("ลงชื่อ......................................................");
-                            c.Item().PaddingTop(2).AlignCenter().Text($"( {(string.IsNullOrWhiteSpace(loan.GuarantorName) ? "......................................................" : loan.GuarantorName)} )");
+                            c.Item().PaddingTop(2).AlignCenter()
+                               .Text($"( {(string.IsNullOrWhiteSpace(loan.GuarantorName) ? "......................................................" : loan.GuarantorName)} )");
                             c.Item().AlignCenter().Text("ผู้ค้ำประกัน");
                         });
-
+ 
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().AlignCenter().Text("ลงชื่อ......................................................");
@@ -529,9 +536,12 @@ public class LoanController : Controller
                         });
                     });
                 });
+ 
+                // [Step 3] เพิ่ม footer มาตรฐาน
+                PdfDocumentBase.ApplyStandardFooter(page);
             });
         });
-
+ 
         return File(document.GeneratePdf(), "application/pdf", $"Contract_{loanId}.pdf");
     }
     [HttpGet]

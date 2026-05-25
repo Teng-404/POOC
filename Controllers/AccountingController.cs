@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using POOC.Data;
+using POOC.Helpers;
 using POOC.Models;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -120,6 +121,7 @@ public class AccountingController : Controller
         return Json(new { success = true, year, rate, results });
     }
 
+    // ─── BuildReport ──────────────────────────────────────────────────────
     private AccountingIndexViewModel BuildReport(DateTime from, DateTime to)
     {
         var visibleMembers = _context.Members.AsNoTracking().ToList();
@@ -143,63 +145,66 @@ public class AccountingController : Controller
             .ToList();
 
         var ledgerRows = new List<AccountingLedgerRow>();
-        var documents = new List<AccountingDocumentRow>();
+        var documents  = new List<AccountingDocumentRow>();
 
         foreach (var item in savings)
         {
-            var isInterest = item.Description.Contains("ดอกเบี้ยเงินฝาก", StringComparison.OrdinalIgnoreCase);
+            var isInterest   = item.Description.Contains("ดอกเบี้ยเงินฝาก", StringComparison.OrdinalIgnoreCase);
             var isWithdrawal = item.Amount < 0;
-            var amount = Math.Abs(item.Amount);
-            var memberName = GetMemberName(memberNames, item.MemberId);
-            var documentNo = $"SV-{item.Id:D5}";
-            var type = isInterest ? "ดอกเบี้ยเงินฝาก" : isWithdrawal ? "ถอนเงินฝาก" : "ฝากเงิน";
+            var amount       = Math.Abs(item.Amount);
+            var memberName   = GetMemberName(memberNames, item.MemberId);
+            var documentNo   = $"SV-{item.Id:D5}";
+            var type         = isInterest ? "ดอกเบี้ยเงินฝาก" : isWithdrawal ? "ถอนเงินฝาก" : "ฝากเงิน";
 
             ledgerRows.Add(new AccountingLedgerRow
             {
-                Date = item.TransactionDate,
-                DocumentNo = documentNo,
-                Type = type,
-                MemberName = memberName,
+                Date        = item.TransactionDate,
+                DocumentNo  = documentNo,
+                Type        = type,
+                MemberName  = memberName,
                 Description = item.Description,
-                Debit = isWithdrawal || isInterest ? amount : 0,
-                Credit = !isWithdrawal && !isInterest ? amount : 0
+                Debit       = isWithdrawal || isInterest ? amount : 0,
+                Credit      = !isWithdrawal && !isInterest ? amount : 0
             });
 
             documents.Add(new AccountingDocumentRow
             {
-                Date = item.TransactionDate,
-                DocumentNo = documentNo,
-                Category = type,
-                MemberName = memberName,
+                Date        = item.TransactionDate,
+                DocumentNo  = documentNo,
+                Category    = type,
+                MemberName  = memberName,
                 Description = item.Description,
-                Amount = amount,
+                Amount      = amount,
                 DownloadUrl = Url.Action(nameof(Receipt), "Accounting", new { type = "savings", id = item.Id }) ?? string.Empty
             });
         }
 
         foreach (var loan in loans)
         {
-            var memberName = loan.Member != null ? $"{loan.Member.FirstName} {loan.Member.LastName}".Trim() : GetMemberName(memberNames, loan.MemberId);
+            var memberName = loan.Member != null
+                ? $"{loan.Member.FirstName} {loan.Member.LastName}".Trim()
+                : GetMemberName(memberNames, loan.MemberId);
             var documentNo = $"LN-{loan.Id:D5}";
+
             ledgerRows.Add(new AccountingLedgerRow
             {
-                Date = loan.CreatedDate,
-                DocumentNo = documentNo,
-                Type = "จ่ายเงินกู้",
-                MemberName = memberName,
+                Date        = loan.CreatedDate,
+                DocumentNo  = documentNo,
+                Type        = "จ่ายเงินกู้",
+                MemberName  = memberName,
                 Description = $"ปล่อยกู้ {loan.Months} งวด อัตรา {loan.Rate:N2}% ต่อปี",
-                Debit = (decimal)loan.Amount,
-                Credit = 0
+                Debit       = (decimal)loan.Amount,
+                Credit      = 0
             });
 
             documents.Add(new AccountingDocumentRow
             {
-                Date = loan.CreatedDate,
-                DocumentNo = documentNo,
-                Category = "สัญญาเงินกู้",
-                MemberName = memberName,
+                Date        = loan.CreatedDate,
+                DocumentNo  = documentNo,
+                Category    = "สัญญาเงินกู้",
+                MemberName  = memberName,
                 Description = $"สัญญาเงินกู้ยอด {loan.Amount:N2} บาท",
-                Amount = (decimal)loan.Amount,
+                Amount      = (decimal)loan.Amount,
                 DownloadUrl = Url.Action("DownloadContract", "Loan", new { loanId = loan.Id }) ?? string.Empty
             });
         }
@@ -212,57 +217,62 @@ public class AccountingController : Controller
                 ? $"{detail.Loan.Member.FirstName} {detail.Loan.Member.LastName}".Trim()
                 : GetMemberName(memberNames, detail.Loan.MemberId);
             var documentNo = $"RC-{detail.Id:D5}";
+
             ledgerRows.Add(new AccountingLedgerRow
             {
-                Date = detail.PaidDate!.Value,
-                DocumentNo = documentNo,
-                Type = "รับชำระเงินกู้",
-                MemberName = memberName,
+                Date        = detail.PaidDate!.Value,
+                DocumentNo  = documentNo,
+                Type        = "รับชำระเงินกู้",
+                MemberName  = memberName,
                 Description = $"รับชำระงวดที่ {detail.Installment} ของสัญญา LN-{detail.LoanId:D5}",
-                Debit = 0,
-                Credit = (decimal)detail.Payment
+                Debit       = 0,
+                Credit      = (decimal)detail.Payment
             });
 
             documents.Add(new AccountingDocumentRow
             {
-                Date = detail.PaidDate.Value,
-                DocumentNo = documentNo,
-                Category = "ใบเสร็จรับชำระ",
-                MemberName = memberName,
+                Date        = detail.PaidDate.Value,
+                DocumentNo  = documentNo,
+                Category    = "ใบเสร็จรับชำระ",
+                MemberName  = memberName,
                 Description = $"เงินต้น {detail.Principal:N2} / ดอกเบี้ย {detail.Interest:N2}",
-                Amount = (decimal)detail.Payment,
+                Amount      = (decimal)detail.Payment,
                 DownloadUrl = Url.Action(nameof(Receipt), "Accounting", new { type = "loan", id = detail.Id }) ?? string.Empty
             });
 
-            // [ใหม่] ledger ค่าปรับแยกแถว (ถ้ามี)
+            // ledger ค่าปรับแยกแถว (ถ้ามี)
             if (detail.PenaltyPaid > 0)
             {
                 ledgerRows.Add(new AccountingLedgerRow
                 {
-                    Date = detail.PaidDate.Value,
-                    DocumentNo = $"PEN-{detail.Id:D5}",
-                    Type = "รับค่าปรับ",
-                    MemberName = memberName,
+                    Date        = detail.PaidDate.Value,
+                    DocumentNo  = $"PEN-{detail.Id:D5}",
+                    Type        = "รับค่าปรับ",
+                    MemberName  = memberName,
                     Description = $"ค่าปรับงวดที่ {detail.Installment} ของสัญญา LN-{detail.LoanId:D5}",
-                    Debit  = 0,
-                    Credit = (decimal)detail.PenaltyPaid
+                    Debit       = 0,
+                    Credit      = (decimal)detail.PenaltyPaid
                 });
             }
         }
 
         var summary = new AccountingSummary
         {
-            SavingsDeposits = savings.Where(s => s.Amount > 0 && !s.Description.Contains("ดอกเบี้ยเงินฝาก", StringComparison.OrdinalIgnoreCase)).Sum(s => s.Amount),
+            SavingsDeposits = savings
+                .Where(s => s.Amount > 0 && !s.Description.Contains("ดอกเบี้ยเงินฝาก", StringComparison.OrdinalIgnoreCase))
+                .Sum(s => s.Amount),
             SavingsWithdrawals = Math.Abs(savings.Where(s => s.Amount < 0).Sum(s => s.Amount)),
-            SavingsInterestPaid = savings.Where(s => s.Amount > 0 && s.Description.Contains("ดอกเบี้ยเงินฝาก", StringComparison.OrdinalIgnoreCase)).Sum(s => s.Amount),
+            SavingsInterestPaid = savings
+                .Where(s => s.Amount > 0 && s.Description.Contains("ดอกเบี้ยเงินฝาก", StringComparison.OrdinalIgnoreCase))
+                .Sum(s => s.Amount),
             LoanDisbursed = loans.Sum(l => (decimal)l.Amount),
             LoanPrincipalCollected = loanDetails.Sum(d => (decimal)d.Principal),
-            LoanInterestCollected = loanDetails.Sum(d => (decimal)d.Interest),
+            LoanInterestCollected  = loanDetails.Sum(d => (decimal)d.Interest),
             OutstandingLoanPrincipal = _context.Loans.AsNoTracking()
                 .Include(l => l.LoanDetails)
                 .ToList()
                 .Sum(l => (decimal)Math.Max(0, l.Amount - l.LoanDetails.Where(d => d.IsPaid).Sum(d => d.Principal))),
-            // [ใหม่] ค่าปรับที่เก็บได้จริงในช่วงเวลาที่เลือก
+            // ค่าปรับที่เก็บได้จริงในช่วงเวลาที่เลือก
             PenaltyCollected = loanDetails.Where(d => d.PenaltyPaid > 0).Sum(d => (decimal)d.PenaltyPaid)
         };
 
@@ -271,27 +281,28 @@ public class AccountingController : Controller
             .GroupBy(x => new { x.Year, x.Rate })
             .Select(g => new AnnualInterestHistoryRow
             {
-                Year = g.Key.Year,
-                Rate = g.Key.Rate,
+                Year           = g.Key.Year,
+                Rate           = g.Key.Rate,
                 TotalPrincipal = g.Sum(x => x.PrincipalSnapshot),
-                TotalInterest = g.Sum(x => x.InterestAmount),
-                MemberCount = g.Count(),
-                CreatedDate = g.Max(x => x.CreatedDate)
+                TotalInterest  = g.Sum(x => x.InterestAmount),
+                MemberCount    = g.Count(),
+                CreatedDate    = g.Max(x => x.CreatedDate)
             })
             .OrderByDescending(x => x.Year)
             .ToList();
 
         return new AccountingIndexViewModel
         {
-            FromDate = from,
-            ToDate = to,
-            Summary = summary,
-            LedgerRows = ledgerRows.OrderByDescending(r => r.Date).ThenByDescending(r => r.DocumentNo).ToList(),
-            Documents = documents.OrderByDescending(d => d.Date).ThenByDescending(d => d.DocumentNo).ToList(),
+            FromDate        = from,
+            ToDate          = to,
+            Summary         = summary,
+            LedgerRows      = ledgerRows.OrderByDescending(r => r.Date).ThenByDescending(r => r.DocumentNo).ToList(),
+            Documents       = documents.OrderByDescending(d => d.Date).ThenByDescending(d => d.DocumentNo).ToList(),
             InterestHistory = interestHistory
         };
     }
 
+    // ─── Receipt ──────────────────────────────────────────────────────────
     public IActionResult Receipt(string type, int id)
     {
         if (string.Equals(type, "savings", StringComparison.OrdinalIgnoreCase))
@@ -321,8 +332,10 @@ public class AccountingController : Controller
                 .FirstOrDefault(d => d.Id == id);
             if (detail?.Loan == null) return NotFound();
 
-            var memberName = detail.Loan.Member != null ? $"{detail.Loan.Member.FirstName} {detail.Loan.Member.LastName}" : "-";
-            // [ใหม่] รวมค่าปรับในใบเสร็จ
+            var memberName = detail.Loan.Member != null
+                ? $"{detail.Loan.Member.FirstName} {detail.Loan.Member.LastName}"
+                : "-";
+            // รวมค่าปรับในใบเสร็จ
             var penaltyDesc = detail.PenaltyPaid > 0
                 ? $" (รวมค่าปรับ {detail.PenaltyPaid:N2} บาท)"
                 : "";
@@ -340,6 +353,44 @@ public class AccountingController : Controller
         return BadRequest();
     }
 
+    // ─── PDF: ใบเสร็จ / ใบสำคัญจ่าย ──────────────────────────────────────
+    private static IDocument CreateReceiptDocument(
+        string documentNo, DateTime date, string memberName,
+        string description, decimal amount, string title)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A5);
+                page.Margin(PdfDocumentBase.MarginCm, Unit.Centimetre);
+                page.DefaultTextStyle(x =>
+                    x.FontFamily(PdfDocumentBase.DefaultFont).FontSize(13));
+
+                page.Content().Column(col =>
+                {
+                    col.Item().AlignCenter().Text(title).FontSize(20).SemiBold();
+                    col.Item().AlignRight().Text($"เลขที่เอกสาร: {documentNo}");
+                    col.Item().AlignRight().Text($"วันที่: {date.ToString("dd MMMM yyyy", ThaiCulture)}");
+                    col.Item().PaddingTop(15).Text($"ได้รับจาก / จ่ายให้: {memberName}");
+                    col.Item().Text($"รายละเอียด: {description}");
+                    col.Item().PaddingTop(10).Border(1).Padding(8)
+                       .Text($"จำนวนเงิน {amount:N2} บาท").FontSize(16).SemiBold();
+                    col.Item().PaddingTop(35).Row(row =>
+                    {
+                        row.RelativeItem().AlignCenter()
+                           .Text("ลงชื่อ................................ ผู้รับเงิน/ผู้จ่ายเงิน");
+                        row.RelativeItem().AlignCenter()
+                           .Text("ลงชื่อ................................ ผู้ตรวจสอบ");
+                    });
+                });
+
+                PdfDocumentBase.ApplyStandardFooter(page);
+            });
+        });
+    }
+
+    // ─── PDF: รายงานบัญชี ─────────────────────────────────────────────────
     private static IDocument CreateAccountingReportDocument(AccountingIndexViewModel report)
     {
         return Document.Create(container =>
@@ -347,24 +398,26 @@ public class AccountingController : Controller
             container.Page(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
-                page.Margin(1.2f, Unit.Centimetre);
-                page.DefaultTextStyle(x => x.FontFamily("TH Sarabun New").FontSize(11));
+                page.Margin(PdfDocumentBase.MarginLandCm, Unit.Centimetre);
+                page.DefaultTextStyle(x =>
+                    x.FontFamily(PdfDocumentBase.DefaultFont).FontSize(11));
 
                 page.Header().Column(col =>
                 {
                     col.Item().AlignCenter().Text("รายงานบัญชีและเอกสาร").FontSize(18).SemiBold();
-                    col.Item().AlignCenter().Text($"ช่วงวันที่ {report.FromDate.ToString("dd MMM yyyy", ThaiCulture)} - {report.ToDate.ToString("dd MMM yyyy", ThaiCulture)}");
+                    col.Item().AlignCenter().Text(
+                        $"ช่วงวันที่ {report.FromDate.ToString("dd MMM yyyy", ThaiCulture)} - {report.ToDate.ToString("dd MMM yyyy", ThaiCulture)}");
                 });
 
                 page.Content().PaddingVertical(10).Column(col =>
                 {
                     col.Item().Row(row =>
                     {
-                        AddSummaryBox(row, "เงินรับ", report.Summary.CashInflow);
-                        AddSummaryBox(row, "เงินจ่าย", report.Summary.CashOutflow);
-                        AddSummaryBox(row, "สุทธิ", report.Summary.NetCashMovement);
-                        AddSummaryBox(row, "ค่าปรับเก็บได้", report.Summary.PenaltyCollected);
-                        AddSummaryBox(row, "ลูกหนี้คงเหลือ", report.Summary.OutstandingLoanPrincipal);
+                        AddSummaryBox(row, "เงินรับ",          report.Summary.CashInflow);
+                        AddSummaryBox(row, "เงินจ่าย",         report.Summary.CashOutflow);
+                        AddSummaryBox(row, "สุทธิ",            report.Summary.NetCashMovement);
+                        AddSummaryBox(row, "ค่าปรับเก็บได้",   report.Summary.PenaltyCollected);
+                        AddSummaryBox(row, "ลูกหนี้คงเหลือ",   report.Summary.OutstandingLoanPrincipal);
                     });
 
                     col.Item().PaddingTop(10).Table(table =>
@@ -394,7 +447,7 @@ public class AccountingController : Controller
                                 container.Background(Colors.Grey.Lighten3).Padding(4);
                         });
 
-                        foreach (var row in report.LedgerRows.Take(80))
+                        foreach (var row in report.LedgerRows)   // ← ไม่มี .Take(80)
                         {
                             table.Cell().Element(ContentStyle).Text(row.Date.ToString("dd/MM/yyyy"));
                             table.Cell().Element(ContentStyle).Text(row.DocumentNo);
@@ -409,38 +462,13 @@ public class AccountingController : Controller
                             container.BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(3);
                     });
                 });
+
+                PdfDocumentBase.ApplyStandardFooter(page);
             });
         });
     }
 
-    private static IDocument CreateReceiptDocument(string documentNo, DateTime date, string memberName, string description, decimal amount, string title)
-    {
-        return Document.Create(container =>
-        {
-            container.Page(page =>
-            {
-                page.Size(PageSizes.A5);
-                page.Margin(1.5f, Unit.Centimetre);
-                page.DefaultTextStyle(x => x.FontFamily("TH Sarabun New").FontSize(13));
-
-                page.Content().Column(col =>
-                {
-                    col.Item().AlignCenter().Text(title).FontSize(20).SemiBold();
-                    col.Item().AlignRight().Text($"เลขที่เอกสาร: {documentNo}");
-                    col.Item().AlignRight().Text($"วันที่: {date.ToString("dd MMMM yyyy", ThaiCulture)}");
-                    col.Item().PaddingTop(15).Text($"ได้รับจาก / จ่ายให้: {memberName}");
-                    col.Item().Text($"รายละเอียด: {description}");
-                    col.Item().PaddingTop(10).Border(1).Padding(8).Text($"จำนวนเงิน {amount:N2} บาท").FontSize(16).SemiBold();
-                    col.Item().PaddingTop(35).Row(row =>
-                    {
-                        row.RelativeItem().AlignCenter().Text("ลงชื่อ................................ ผู้รับเงิน/ผู้จ่ายเงิน");
-                        row.RelativeItem().AlignCenter().Text("ลงชื่อ................................ ผู้ตรวจสอบ");
-                    });
-                });
-            });
-        });
-    }
-
+    // ─── helper: summary box ──────────────────────────────────────────────
     private static void AddSummaryBox(RowDescriptor row, string label, decimal value)
     {
         row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Column(col =>
@@ -450,6 +478,7 @@ public class AccountingController : Controller
         });
     }
 
+    // ─── helper: date range ───────────────────────────────────────────────
     private static (DateTime From, DateTime To) NormalizeDateRange(string? fromDate, string? toDate)
     {
         var today = DateTime.Now.Date;
@@ -469,9 +498,7 @@ public class AccountingController : Controller
     }
 
     private static string GetMemberName(Dictionary<int, string> memberNames, int memberId)
-    {
-        return memberNames.TryGetValue(memberId, out var name) ? name : $"Member #{memberId}";
-    }
+        => memberNames.TryGetValue(memberId, out var name) ? name : $"Member #{memberId}";
 
     private static string EscapeCsv(string value)
     {
@@ -490,17 +517,17 @@ public class AccountingController : Controller
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
         _context.AuditLogs.Add(new AuditLog
         {
-            UserId = userId,
-            Action = action,
+            UserId     = userId,
+            Action     = action,
             EntityName = entityName,
-            EntityId = entityId,
-            Detail = detail
+            EntityId   = entityId,
+            Detail     = detail
         });
     }
 }
 
 public class InterestRequest
 {
-    public int Year { get; set; }
+    public int     Year { get; set; }
     public decimal Rate { get; set; }
 }
