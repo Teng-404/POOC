@@ -120,4 +120,9 @@ using (var scope = app.Services.CreateScope())
     context.SaveChanges();
 }
 
+var port = Environment.GetEnvironmentVariable("ASPNETCORE_PORT") 
+           ?? Environment.GetEnvironmentVariable("PORT") 
+           ?? "8080";
+app.Urls.Add($"http://0.0.0.0:{port}");
+
 app.Run();
