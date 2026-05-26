@@ -27,6 +27,9 @@ jobs:
       - name: Publish
         run: dotnet publish --configuration Release --output ./publish --runtime win-x86 --self-contained false
 
+      - name: Copy web.config to publish
+        run: Copy-Item -Path web.config -Destination ./publish/web.config -Force
+
       - name: Deploy to MonsterASP.NET via WebDeploy
         uses: rasmusbuchholdt/simply-web-deploy@2.1.0
         with:
