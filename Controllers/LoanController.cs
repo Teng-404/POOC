@@ -430,42 +430,48 @@ public class LoanController : Controller
 
         if (loan == null) return NotFound();
 
-        var schedule   = loan.LoanDetails.OrderBy(d => d.Installment).ToList();
-        var memberName = $"{loan.Member?.FirstName} {loan.Member?.LastName}".Trim();
-        var docNo      = $"LN-{loan.Id:D5}";
-        var dateStr    = loan.CreatedDate.ToString("dd MMMM yyyy", ThaiCulture);
-        var memberId   = loan.Member != null ? $"M-{loan.Member.Id:D5}" : "-";
-        var guarantor  = string.IsNullOrWhiteSpace(loan.GuarantorName)
-                         ? "......................................................" : loan.GuarantorName;
-        var guarPhone  = string.IsNullOrWhiteSpace(loan.GuarantorPhone) ? "-" : loan.GuarantorPhone;
-        var guarAddr   = string.IsNullOrWhiteSpace(loan.GuarantorAddress)
-                         ? "......................................................" : loan.GuarantorAddress;
-        var startDue   = new DateTime(loan.CreatedDate.Year, loan.CreatedDate.Month, 1).AddMonths(1);
+        // ── ข้อมูลเอกสาร ──────────────────────────────────────────────────────
+        var schedule      = loan.LoanDetails.OrderBy(d => d.Installment).ToList();
+        var memberName    = $"{loan.Member?.FirstName} {loan.Member?.LastName}".Trim();
+        var docNo         = $"LN-{loan.Id:D5}";
+        var contractDate  = (loan.ApprovedDate ?? loan.CreatedDate)
+                                .ToString("dd MMMM yyyy", ThaiCulture);
+        var printDate     = DateTime.Now.ToString("dd MMMM yyyy", ThaiCulture);
+        var memberId      = loan.Member != null ? $"M-{loan.Member.Id:D5}" : "-";
+        var guarantor     = string.IsNullOrWhiteSpace(loan.GuarantorName)  ? "-" : loan.GuarantorName;
+        var guarPhone     = string.IsNullOrWhiteSpace(loan.GuarantorPhone) ? "-" : loan.GuarantorPhone;
+        var guarAddr      = string.IsNullOrWhiteSpace(loan.GuarantorAddress) ? "-" : loan.GuarantorAddress;
+        var memberPhone   = string.IsNullOrWhiteSpace(loan.Member?.Phone)   ? "-" : loan.Member!.Phone;
+        var memberAddress = string.IsNullOrWhiteSpace(loan.Member?.Address) ? "-" : loan.Member!.Address;
+        var memberRole    = string.IsNullOrWhiteSpace(loan.Member?.Role)    ? "-" : loan.Member!.Role;
+        var startDue      = new DateTime(loan.CreatedDate.Year, loan.CreatedDate.Month, 1).AddMonths(1);
 
         double totalPrincipal = schedule.Sum(d => d.Principal);
         double totalInterest  = schedule.Sum(d => d.Interest);
         double totalPayment   = schedule.Sum(d => d.Payment);
         double firstPayment   = schedule.FirstOrDefault()?.Payment ?? 0;
 
-        // ── design tokens (ขาวดำ สไตล์ราชการ) ───────────────────────────────
-        const float FS_TITLE  = 15f;
-        const float FS_BODY   = 10.5f;
-        const float FS_SMALL  = 9.5f;
-        const float FS_TABLE  = 9f;
-        const float FS_FOOTER = 8f;
-        const string INK   = "#1A1A1A";
-        const string LABEL = "#555555";
-        const string RULE  = "#999999";
-        const string ROWALT = "#F8F8F8";
+        // ── Design Tokens (ขาว-ดำ สไตล์เอกสารราชการ) ────────────────────────
+        const float FS_TITLE  = 15f;   // ชื่อเอกสาร
+        const float FS_BODY   = 10f;   // เนื้อหาทั่วไป
+        const float FS_SMALL  =  9f;   // label / caption
+        const float FS_TABLE  =  8.5f; // ตาราง
+        const float FS_FOOTER =  7.5f; // footer
+
+        const string BLACK  = "#000000";
+        const string INK    = "#1A1A1A"; // เนื้อหาหลัก
+        const string GRAY   = "#555555"; // label รอง
+        const string RULE   = "#AAAAAA"; // เส้นแบ่ง
+        const string ROWALT = "#F4F4F4"; // แถวสลับตาราง — เทาอ่อนมาก
 
         var document = Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginLeft(2.5f,   Unit.Centimetre);
-                page.MarginRight(1.8f,  Unit.Centimetre);
-                page.MarginTop(1.8f,    Unit.Centimetre);
+                page.MarginLeft(2.5f,  Unit.Centimetre);
+                page.MarginRight(2.0f, Unit.Centimetre);
+                page.MarginTop(2.0f,   Unit.Centimetre);
                 page.MarginBottom(2.0f, Unit.Centimetre);
                 page.DefaultTextStyle(x =>
                     x.FontFamily(PdfDocumentBase.DefaultFont)
@@ -473,125 +479,148 @@ public class LoanController : Controller
                      .FontColor(INK)
                      .LineHeight(1.55f));
 
-                // ── Footer ────────────────────────────────────────────────
+                // ── Footer ───────────────────────────────────────────────────
                 page.Footer()
-                    .BorderTop(0.4f).BorderColor(RULE)
-                    .PaddingTop(3)
+                    .BorderTop(0.5f).BorderColor(RULE)
+                    .PaddingTop(5)
                     .Row(row =>
                     {
                         row.RelativeItem()
-                           .Text("ระบบบริหารจัดการกองทุน POOC  \u2014  เอกสารพิมพ์จากระบบอัตโนมัติ")
-                           .FontSize(FS_FOOTER).FontColor(LABEL);
-                        row.ConstantItem(40).AlignRight()
+                           .Text($"POOC — ระบบบริหารจัดการกองทุน  |  สัญญาเลขที่ {docNo}")
+                           .FontSize(FS_FOOTER).FontColor(GRAY);
+                        row.AutoItem()
                            .Text(t =>
                            {
-                               t.Span("หน้า ").FontSize(FS_FOOTER).FontColor(LABEL);
-                               t.CurrentPageNumber().FontSize(FS_FOOTER).FontColor(LABEL);
+                               t.Span("หน้า ").FontSize(FS_FOOTER).FontColor(GRAY);
+                               t.CurrentPageNumber().FontSize(FS_FOOTER).FontColor(GRAY);
+                               t.Span(" / ").FontSize(FS_FOOTER).FontColor(GRAY);
+                               t.TotalPages().FontSize(FS_FOOTER).FontColor(GRAY);
                            });
                     });
 
-                // ── Content ───────────────────────────────────────────────
+                // ── Content ──────────────────────────────────────────────────
                 page.Content().Column(col =>
                 {
-                    // ══ ❶ หัวกระดาษ ════════════════════════════════════
+                    // ══ ❶ หัวเอกสาร ══════════════════════════════════════════
                     col.Item().AlignCenter()
+                       .Text("ระบบบริหารจัดการกองทุน POOC")
+                       .FontSize(FS_SMALL).FontColor(GRAY);
+
+                    col.Item().PaddingTop(2).AlignCenter()
                        .Text("หนังสือสัญญากู้ยืมเงิน")
-                       .FontSize(FS_TITLE).Bold().FontColor(Colors.Black);
+                       .FontSize(FS_TITLE).Bold().FontColor(BLACK);
 
-                    col.Item().PaddingTop(4)
-                       .BorderBottom(1.2f).BorderColor(Colors.Black);
-                    col.Item().PaddingTop(2)
-                       .BorderBottom(0.4f).BorderColor(Colors.Black);
-                    col.Item().PaddingTop(5);
+                    col.Item().PaddingTop(3)
+                       .BorderBottom(1.5f).BorderColor(BLACK);
+                    col.Item().PaddingTop(1)
+                       .BorderBottom(0.4f).BorderColor(BLACK);
 
-                    // เลขที่ / วันที่ / สถานที่
-                    col.Item().Row(row =>
+                    col.Item().PaddingTop(6).Row(row =>
                     {
-                        ContractFieldCell(row.RelativeItem(), "เลขที่",   docNo,   FS_SMALL, LABEL);
-                        ContractFieldCell(row.RelativeItem(), "วันที่",   dateStr, FS_SMALL, LABEL);
-                        ContractFieldCell(row.RelativeItem(), "สถานที่",
-                            "กองทุนสวัสดิการ POOC",              FS_SMALL, LABEL);
+                        row.AutoItem().PaddingRight(4)
+                           .Text("เลขที่สัญญา").FontSize(FS_SMALL).FontColor(GRAY);
+                        row.AutoItem()
+                           .BorderBottom(0.5f).BorderColor(RULE)
+                           .PaddingBottom(1).PaddingRight(20)
+                           .Text(docNo).FontSize(FS_SMALL).Bold();
+
+                        row.AutoItem().PaddingRight(4)
+                           .Text("วันที่ทำสัญญา").FontSize(FS_SMALL).FontColor(GRAY);
+                        row.AutoItem()
+                           .BorderBottom(0.5f).BorderColor(RULE)
+                           .PaddingBottom(1)
+                           .Text(contractDate).FontSize(FS_SMALL).Bold();
+
+                        row.RelativeItem();
+
+                        row.AutoItem().PaddingRight(4)
+                           .Text("พิมพ์วันที่").FontSize(FS_SMALL).FontColor(GRAY);
+                        row.AutoItem()
+                           .Text(printDate).FontSize(FS_SMALL).FontColor(GRAY);
                     });
 
-                    col.Item().PaddingTop(8);
+                    col.Item().PaddingTop(10);
 
-                    // ══ ❷ ข้อความนำ ════════════════════════════════════
+                    // ══ ❷ ข้อความนำ ══════════════════════════════════════════
                     col.Item().Text(t =>
                     {
-                        t.Span("\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0");
-                        t.Span("หนังสือสัญญาฉบับนี้ทำขึ้น ณ ที่ทำการกองทุนสวัสดิการ POOC ");
-                        t.Span("ระหว่าง กองทุนสวัสดิการองค์กร ซึ่งต่อไปเรียกว่า \u201cผู้ให้กู้\u201d ฝ่ายหนึ่ง ");
-                        t.Span("กับ ");
+                        t.Span("        "); // indent ย่อหน้า
+                        t.Span("หนังสือสัญญาฉบับนี้ทำขึ้น ณ ที่ทำการ POOC ระหว่าง กองทุน POOC " +
+                               "ซึ่งต่อไปเรียกว่า ");
+                        t.Span("\"ผู้ให้กู้\"").Bold();
+                        t.Span(" ฝ่ายหนึ่ง กับ ");
                         t.Span(memberName).Bold();
-                        t.Span($" รหัสสมาชิก {memberId} ");
-                        t.Span("ซึ่งต่อไปเรียกว่า \u201cผู้กู้\u201d อีกฝ่ายหนึ่ง ");
-                        t.Span("โดยคู่สัญญาทั้งสองฝ่ายตกลงทำสัญญากันมีข้อความดังต่อไปนี้");
+                        t.Span($" รหัสสมาชิก {memberId} ซึ่งต่อไปเรียกว่า ");
+                        t.Span("\"ผู้กู้\"").Bold();
+                        t.Span(" อีกฝ่ายหนึ่ง " +
+                               "โดยคู่สัญญาทั้งสองฝ่ายตกลงทำสัญญากันมีข้อความดังต่อไปนี้");
                     });
 
-                    col.Item().PaddingTop(8);
+                    col.Item().PaddingTop(10);
 
-                    // ══ ❸ ข้อมูลคู่สัญญา ═══════════════════════════════
-                    col.Item().Row(row =>
-                    {
-                        ContractFieldCell(row.RelativeItem(3), "ชื่อผู้กู้",   memberName, FS_BODY, LABEL);
-                        ContractFieldCell(row.RelativeItem(2), "รหัสสมาชิก",  memberId,   FS_BODY, LABEL);
-                    });
-                    col.Item().PaddingTop(3);
-                    col.Item().Row(row =>
-                    {
-                        ContractFieldCell(row.RelativeItem(3), "ตำแหน่ง",
-                            loan.Member?.Role ?? "..............................", FS_BODY, LABEL);
-                        ContractFieldCell(row.RelativeItem(2), "เบอร์โทร",
-                            loan.Member?.Phone ?? "..............................", FS_BODY, LABEL);
-                    });
-                    col.Item().PaddingTop(3);
-                    col.Item().Row(r =>
-                    {
-                        r.AutoItem().PaddingRight(3)
-                         .Text("ที่อยู่\u00a0").FontSize(FS_SMALL).FontColor(LABEL);
-                        r.RelativeItem()
-                         .BorderBottom(0.4f).BorderColor(LABEL)
-                         .Text(loan.Member?.Address ?? "......................................................................")
-                         .FontSize(FS_BODY).Bold();
-                    });
-                    col.Item().PaddingTop(3);
-                    col.Item().Row(row =>
-                    {
-                        ContractFieldCell(row.RelativeItem(3), "ผู้ค้ำประกัน", guarantor,  FS_BODY, LABEL);
-                        ContractFieldCell(row.RelativeItem(2), "เบอร์โทร",     guarPhone,  FS_BODY, LABEL);
-                    });
-                    col.Item().PaddingTop(3);
-                    col.Item().Row(r =>
-                    {
-                        r.AutoItem().PaddingRight(3)
-                         .Text("ที่อยู่ผู้ค้ำ\u00a0").FontSize(FS_SMALL).FontColor(LABEL);
-                        r.RelativeItem()
-                         .BorderBottom(0.4f).BorderColor(LABEL)
-                         .Text(guarAddr)
-                         .FontSize(FS_BODY).Bold();
-                    });
+                    // ══ ❸ ข้อมูลคู่สัญญา ════════════════════════════════════
+                    // หัวข้อ: ผู้กู้
+                    col.Item()
+                       .BorderBottom(0.5f).BorderColor(BLACK)
+                       .PaddingBottom(2)
+                       .Text("ข้อมูลผู้กู้").FontSize(FS_BODY).Bold();
 
-                    col.Item().PaddingTop(8)
-                       .BorderBottom(0.3f).BorderColor(RULE);
+                    col.Item().PaddingTop(5).Row(row =>
+                    {
+                        ContractFieldCell(row.RelativeItem(3), "ชื่อ-นามสกุล", memberName, FS_BODY, GRAY, RULE);
+                        ContractFieldCell(row.RelativeItem(2), "รหัสสมาชิก",   memberId,   FS_BODY, GRAY, RULE);
+                    });
+                    col.Item().PaddingTop(6).Row(row =>
+                    {
+                        ContractFieldCell(row.RelativeItem(3), "ตำแหน่ง/แผนก", memberRole,  FS_BODY, GRAY, RULE);
+                        ContractFieldCell(row.RelativeItem(2), "เบอร์โทรศัพท์", memberPhone, FS_BODY, GRAY, RULE);
+                    });
+                    col.Item().PaddingTop(6);
+                    ContractFieldCell(col.Item(), "ที่อยู่", memberAddress, FS_BODY, GRAY, RULE);
+
+                    col.Item().PaddingTop(10);
+
+                    // หัวข้อ: ผู้ค้ำประกัน
+                    col.Item()
+                       .BorderBottom(0.5f).BorderColor(BLACK)
+                       .PaddingBottom(2)
+                       .Text("ข้อมูลผู้ค้ำประกัน").FontSize(FS_BODY).Bold();
+
+                    col.Item().PaddingTop(5).Row(row =>
+                    {
+                        ContractFieldCell(row.RelativeItem(3), "ชื่อ-นามสกุล",   guarantor, FS_BODY, GRAY, RULE);
+                        ContractFieldCell(row.RelativeItem(2), "เบอร์โทรศัพท์", guarPhone,  FS_BODY, GRAY, RULE);
+                    });
+                    col.Item().PaddingTop(6);
+                    ContractFieldCell(col.Item(), "ที่อยู่", guarAddr, FS_BODY, GRAY, RULE);
+
+                    col.Item().PaddingTop(12)
+                       .BorderBottom(0.5f).BorderColor(RULE);
+                    col.Item().PaddingTop(10);
+
+                    // ══ ❹ ข้อกำหนดสัญญา ═════════════════════════════════════
+                    col.Item()
+                       .BorderBottom(0.5f).BorderColor(BLACK)
+                       .PaddingBottom(2)
+                       .Text("ข้อกำหนดและเงื่อนไข").FontSize(FS_BODY).Bold();
+
                     col.Item().PaddingTop(6);
 
-                    // ══ ❹ ข้อกำหนด ════════════════════════════════════
                     ContractClause(col, "ข้อ ๑.",
                         $"ผู้กู้ได้กู้ยืมเงินจากผู้ให้กู้ เป็นจำนวนเงิน {loan.Amount:N2} บาท " +
                         "โดยผู้ให้กู้ได้ส่งมอบเงินให้แก่ผู้กู้ครบถ้วนแล้วในวันทำสัญญานี้",
                         FS_BODY);
 
                     ContractClause(col, "ข้อ ๒.",
-                        $"ผู้กู้ตกลงชำระคืนเงินต้นพร้อมดอกเบี้ยในอัตรา ร้อยละ {loan.Rate:N2} ต่อปี " +
+                        $"ผู้กู้ตกลงชำระคืนเงินต้นพร้อมดอกเบี้ยในอัตราร้อยละ {loan.Rate:N2} ต่อปี " +
                         $"แบ่งชำระรายเดือน จำนวน {loan.Months} งวด งวดละ {firstPayment:N2} บาท " +
                         $"เริ่มงวดแรกวันที่ {startDue.ToString("d MMMM yyyy", ThaiCulture)} " +
-                        "และชำระทุกวันที่ ๑ ของเดือนถัดไปจนครบตามตารางแนบท้ายสัญญา",
+                        "และชำระทุกวันที่ 1 ของเดือนถัดไปจนครบตามตารางแนบท้ายสัญญา",
                         FS_BODY);
 
                     ContractClause(col, "ข้อ ๓.",
-                        "หากผู้กู้ผิดนัดชำระเกินกว่า ๓๐ วัน ผู้กู้ยินยอมให้คิดค่าปรับในอัตรา " +
-                        "ร้อยละ ๑.๕๐ ต่อเดือน ของยอดค้างชำระ " +
-                        "นับแต่วันครบกำหนดจนถึงวันชำระจริง",
+                        "หากผู้กู้ผิดนัดชำระเกินกว่า 30 วัน ผู้กู้ยินยอมให้คิดค่าปรับในอัตราร้อยละ 1.50 " +
+                        "ต่อเดือนของยอดค้างชำระ นับแต่วันครบกำหนดจนถึงวันชำระจริง",
                         FS_BODY);
 
                     ContractClause(col, "ข้อ ๔.",
@@ -601,55 +630,62 @@ public class LoanController : Controller
 
                     ContractClause(col, "ข้อ ๕.",
                         "ผู้ให้กู้มีสิทธิ์หักเงินเดือน สวัสดิการ หรือสิทธิประโยชน์ใดๆ ของผู้กู้ " +
-                        "เพื่อชำระหนี้ตามสัญญาฉบับนี้ " +
-                        "ผู้กู้ให้ความยินยอมไว้ล่วงหน้าด้วยการลงลายมือชื่อ",
+                        "เพื่อชำระหนี้ตามสัญญาฉบับนี้ โดยผู้กู้ให้ความยินยอมไว้ล่วงหน้าด้วยการลงลายมือชื่อในสัญญาฉบับนี้",
                         FS_BODY);
 
                     ContractClause(col, "ข้อ ๖.",
-                        "สัญญาฉบับนี้ทำขึ้นสองฉบับ มีข้อความตรงกัน " +
-                        "คู่สัญญาแต่ละฝ่ายยึดถือฝ่ายละหนึ่งฉบับ " +
-                        "หากเกิดข้อพิพาทให้อยู่ภายใต้เขตอำนาจของศาลที่มีอำนาจและใช้กฎหมายไทยบังคับ",
+                        "สัญญาฉบับนี้ทำขึ้นสองฉบับ มีข้อความตรงกัน คู่สัญญาแต่ละฝ่ายยึดถือฝ่ายละหนึ่งฉบับ " +
+                        "หากเกิดข้อพิพาทให้อยู่ภายใต้เขตอำนาจของศาลที่มีอำนาจและบังคับด้วยกฎหมายไทย",
                         FS_BODY);
 
-                    col.Item().PaddingTop(5);
+                    col.Item().PaddingTop(6);
                     col.Item().Text(t =>
                     {
-                        t.Span("\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0");
+                        t.Span("        ");
                         t.Span("คู่สัญญาทั้งสองฝ่ายได้อ่านและเข้าใจข้อความในสัญญาโดยตลอดแล้ว " +
                                "จึงลงลายมือชื่อไว้เป็นสำคัญต่อหน้าพยาน");
                     });
 
-                    col.Item().PaddingTop(10);
+                    col.Item().PaddingTop(14);
 
-                    // ══ ❺ ตารางผ่อนชำระ ════════════════════════════════
-                    col.Item().BorderTop(0.3f).BorderColor(RULE);
-                    col.Item().PaddingTop(5).AlignCenter()
-                       .Text($"ตารางการผ่อนชำระ  —  สัญญาเลขที่ {docNo}")
-                       .FontSize(FS_BODY + 0.5f).Bold();
-                    col.Item().AlignCenter()
-                       .Text($"วงเงิน {loan.Amount:N2} บาท  |  ดอกเบี้ย {loan.Rate:N2}% ต่อปี  |  {loan.Months} งวด")
-                       .FontSize(FS_SMALL).FontColor(LABEL);
-                    col.Item().PaddingTop(5).Table(table =>
+                    // ══ ❺ ตารางการผ่อนชำระ ══════════════════════════════════
+                    col.Item()
+                       .BorderBottom(0.5f).BorderColor(BLACK)
+                       .PaddingBottom(2)
+                       .Row(row =>
+                       {
+                           row.RelativeItem()
+                              .Text("ตารางการผ่อนชำระ").FontSize(FS_BODY).Bold();
+                           row.AutoItem()
+                              .Text($"วงเงิน {loan.Amount:N2} บาท  |  " +
+                                    $"ดอกเบี้ย {loan.Rate:N2}% ต่อปี  |  " +
+                                    $"{loan.Months} งวด")
+                              .FontSize(FS_SMALL).FontColor(GRAY);
+                       });
+
+                    col.Item().PaddingTop(4).Table(table =>
                     {
                         table.ColumnsDefinition(c =>
                         {
-                            c.ConstantColumn(28);
-                            c.RelativeColumn(1.4f);
-                            c.RelativeColumn(1.2f);
-                            c.RelativeColumn(1.1f);
-                            c.RelativeColumn(1.2f);
-                            c.RelativeColumn(1.4f);
+                            c.ConstantColumn(28);    // งวดที่
+                            c.RelativeColumn(1.6f);  // วันครบกำหนด
+                            c.RelativeColumn(1.2f);  // เงินต้น
+                            c.RelativeColumn(1.2f);  // ดอกเบี้ย
+                            c.RelativeColumn(1.2f);  // ยอดผ่อน
+                            c.RelativeColumn(1.4f);  // ยอดคงเหลือ
                         });
 
+                        // แถว header
                         table.Header(h =>
                         {
-                            static IContainer Hdr(IContainer c) =>
-                                c.BorderBottom(0.6f).BorderColor(Colors.Black)
-                                 .BorderTop(0.6f).BorderColor(Colors.Black)
+                            IContainer Hdr(IContainer c) =>
+                                c.BorderTop(1f).BorderColor(BLACK)
+                                 .BorderBottom(0.5f).BorderColor(BLACK)
                                  .PaddingVertical(4).PaddingHorizontal(3);
+
                             h.Cell().Element(Hdr).AlignCenter()
                              .Text("งวดที่").FontSize(FS_TABLE).Bold();
-                            h.Cell().Element(Hdr).AlignCenter()
+                            h.Cell().Element(Hdr)
                              .Text("วันครบกำหนด").FontSize(FS_TABLE).Bold();
                             h.Cell().Element(Hdr).AlignRight()
                              .Text("เงินต้น (บาท)").FontSize(FS_TABLE).Bold();
@@ -661,6 +697,7 @@ public class LoanController : Controller
                              .Text("ยอดคงเหลือ (บาท)").FontSize(FS_TABLE).Bold();
                         });
 
+                        // แถวข้อมูล — สลับสีขาว / เทาอ่อน ไม่มีเส้นแนวตั้ง
                         bool alt = false;
                         foreach (var d in schedule)
                         {
@@ -671,8 +708,7 @@ public class LoanController : Controller
 
                             IContainer Cell(IContainer c) =>
                                 c.Background(bg)
-                                 .BorderBottom(0.3f).BorderColor(RULE)
-                                 .PaddingVertical(2.5f).PaddingHorizontal(3);
+                                 .PaddingVertical(3).PaddingHorizontal(3);
 
                             table.Cell().Element(Cell).AlignCenter()
                                  .Text(d.Installment.ToString()).FontSize(FS_TABLE);
@@ -683,15 +719,15 @@ public class LoanController : Controller
                             table.Cell().Element(Cell).AlignRight()
                                  .Text(d.Interest.ToString("N2")).FontSize(FS_TABLE);
                             table.Cell().Element(Cell).AlignRight()
-                                 .Text(d.Payment.ToString("N2")).FontSize(FS_TABLE);
+                                 .Text(d.Payment.ToString("N2")).FontSize(FS_TABLE).Bold();
                             table.Cell().Element(Cell).AlignRight()
                                  .Text(d.Balance.ToString("N2")).FontSize(FS_TABLE);
                         }
 
                         // แถวรวม
                         IContainer TotalCell(IContainer c) =>
-                            c.BorderTop(0.6f).BorderColor(Colors.Black)
-                             .BorderBottom(0.6f).BorderColor(Colors.Black)
+                            c.BorderTop(0.5f).BorderColor(BLACK)
+                             .BorderBottom(1f).BorderColor(BLACK)
                              .PaddingVertical(4).PaddingHorizontal(3);
 
                         table.Cell().Element(TotalCell).AlignCenter()
@@ -704,42 +740,40 @@ public class LoanController : Controller
                         table.Cell().Element(TotalCell).AlignRight()
                              .Text(totalPayment.ToString("N2")).FontSize(FS_TABLE).Bold();
                         table.Cell().Element(TotalCell).AlignRight()
-                             .Text("\u2014").FontSize(FS_TABLE).Bold();
+                             .Text("-").FontSize(FS_TABLE).FontColor(GRAY);
                     });
 
-                    col.Item().PaddingTop(10);
+                    col.Item().PaddingTop(16);
 
-                    // ══ ❻ ลายเซ็น ════════════════════════════════════
+                    // ══ ❻ ลายเซ็น ═══════════════════════════════════════════
                     col.Item().Row(row =>
                     {
-                        ContractSigCol(row.RelativeItem(), memberName,
-                            "ผู้กู้", null, FS_SMALL, LABEL);
-                        ContractSigCol(row.RelativeItem(), guarantor,
-                            "ผู้ค้ำประกัน", null, FS_SMALL, LABEL);
-                        ContractSigCol(row.RelativeItem(), null,
-                            "ผู้ให้กู้", "ผู้มีอำนาจลงนาม", FS_SMALL, LABEL);
+                        ContractSigCol(row.RelativeItem(), memberName,  "ผู้กู้",           null,               FS_SMALL, GRAY);
+                        ContractSigCol(row.RelativeItem(), guarantor,   "ผู้ค้ำประกัน",      null,               FS_SMALL, GRAY);
+                        ContractSigCol(row.RelativeItem(), null,        "ผู้ให้กู้",         "ผู้มีอำนาจลงนาม", FS_SMALL, GRAY);
                     });
 
-                    col.Item().PaddingTop(8)
-                       .BorderTop(0.3f).BorderColor(RULE);
-                    col.Item().PaddingTop(3)
-                       .Text("พยาน").FontSize(FS_SMALL).FontColor(LABEL);
+                    col.Item().PaddingTop(12)
+                       .BorderTop(0.5f).BorderColor(RULE);
+
+                    col.Item().PaddingTop(6)
+                       .Text("พยาน").FontSize(FS_SMALL).FontColor(GRAY);
+
                     col.Item().PaddingTop(4).Row(row =>
                     {
-                        ContractSigCol(row.RelativeItem(), null,
-                            "พยานที่ ๑", null, FS_SMALL, LABEL);
-                        row.ConstantItem(20);
-                        ContractSigCol(row.RelativeItem(), null,
-                            "พยานที่ ๒", null, FS_SMALL, LABEL);
+                        ContractSigCol(row.RelativeItem(), null, "พยานที่ 1", null, FS_SMALL, GRAY);
+                        row.ConstantItem(24);
+                        ContractSigCol(row.RelativeItem(), null, "พยานที่ 2", null, FS_SMALL, GRAY);
                         row.RelativeItem();
                     });
 
-                    col.Item().PaddingTop(8)
-                       .BorderTop(0.3f).BorderColor(RULE);
-                    col.Item().PaddingTop(4).AlignCenter()
+                    col.Item().PaddingTop(12)
+                       .BorderTop(0.5f).BorderColor(RULE);
+
+                    col.Item().PaddingTop(5).AlignCenter()
                        .Text("สัญญาฉบับนี้ทำขึ้นเป็นสองฉบับ มีข้อความถูกต้องตรงกัน " +
                              "คู่สัญญาแต่ละฝ่ายได้รับไปยึดถือไว้ฝ่ายละหนึ่งฉบับ")
-                       .FontSize(FS_SMALL).FontColor(LABEL);
+                       .FontSize(FS_SMALL).FontColor(GRAY);
                 });
             });
         });
@@ -749,43 +783,50 @@ public class LoanController : Controller
 
     // ── helpers สำหรับ DownloadContract ──────────────────────────────────────
 
-    /// <summary>ช่องข้อมูล inline: label + เส้นใต้ + value</summary>
+    /// <summary>ช่องข้อมูล: label เล็ก + value ตัวหนา + เส้นใต้</summary>
     private static void ContractFieldCell(
-        IContainer container, string label, string value, float fs, string labelColor)
+        IContainer container, string label, string value,
+        float fs, string labelColor, string ruleColor)
     {
-        container.PaddingRight(8).Row(r =>
+        container.PaddingRight(16).Column(c =>
         {
-            r.AutoItem().PaddingRight(3)
+            c.Item()
              .Text(label).FontSize(fs - 1f).FontColor(labelColor);
-            r.RelativeItem()
-             .BorderBottom(0.4f).BorderColor(labelColor)
-             .Text(value).FontSize(fs).Bold();
+            c.Item()
+             .BorderBottom(0.5f).BorderColor(ruleColor)
+             .PaddingBottom(2)
+             .Text(string.IsNullOrWhiteSpace(value) ? "-" : value)
+             .FontSize(fs).Bold();
         });
     }
 
-    /// <summary>ข้อกำหนด: เลขข้อ + ข้อความ Justify</summary>
+    /// <summary>
+    /// ข้อกำหนด: "ข้อ X." inline กับเนื้อหาในย่อหน้าเดียวกัน
+    /// ป้องกัน gap จาก ConstantItem และป้องกัน Justify ยืดบรรทัดสุดท้าย
+    /// </summary>
     private static void ContractClause(
         ColumnDescriptor col, string num, string text, float fs)
     {
-        col.Item().PaddingVertical(1.5f).Row(r =>
+        col.Item().PaddingTop(1).PaddingBottom(4).Text(t =>
         {
-            r.ConstantItem(42).Text(num).FontSize(fs);
-            r.RelativeItem().Text(text).FontSize(fs);
+            t.Span(num + " ").FontSize(fs).Bold();
+            t.Span(text).FontSize(fs);
         });
     }
 
-    /// <summary>คอลัมน์ลายเซ็น</summary>
+    /// <summary>คอลัมน์ลายเซ็น: เส้น + ชื่อ + บทบาท + วันที่</summary>
     private static void ContractSigCol(
         IContainer container, string? name,
         string role1, string? role2, float fs, string labelColor)
     {
-        container.Column(c =>
+        container.PaddingHorizontal(6).Column(c =>
         {
-            c.Item().AlignCenter()
-             .Text("ลงชื่อ ..........................................")
-             .FontSize(fs);
-            c.Item().AlignCenter()
-             .Text($"( {(string.IsNullOrWhiteSpace(name) ? "......................................................" : name)} )")
+            c.Item().PaddingTop(28).PaddingHorizontal(4)
+             .BorderBottom(0.5f).BorderColor("#888888");
+            c.Item().PaddingTop(4).AlignCenter()
+             .Text(string.IsNullOrWhiteSpace(name)
+                 ? "(................................................)"
+                 : $"({name})")
              .FontSize(fs);
             c.Item().AlignCenter()
              .Text(role1).FontSize(fs - 0.5f).FontColor(labelColor);
@@ -793,10 +834,11 @@ public class LoanController : Controller
                 c.Item().AlignCenter()
                  .Text(role2).FontSize(fs - 0.5f).FontColor(labelColor);
             c.Item().PaddingTop(5).AlignCenter()
-             .Text("วันที่ ......... เดือน .................. พ.ศ. ..........")
-             .FontSize(fs - 0.5f).FontColor(labelColor);
+             .Text("วันที่ ......../......../.........")
+             .FontSize(fs - 1f).FontColor(labelColor);
         });
     }
+
     [HttpGet]
     public IActionResult GetOverdueSummary()
     {

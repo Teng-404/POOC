@@ -358,39 +358,182 @@ public class AccountingController : Controller
         string documentNo, DateTime date, string memberName,
         string description, decimal amount, string title)
     {
+        // ── Design Tokens (ขาว-ดำ สอดคล้องกับ LoanController) ───────────────
+        const float FS_TITLE  = 15f;
+        const float FS_BODY   = 10f;
+        const float FS_SMALL  =  9f;
+        const float FS_FOOTER =  7.5f;
+
+        const string BLACK = "#000000";
+        const string INK   = "#1A1A1A";
+        const string GRAY  = "#555555";
+        const string RULE  = "#AAAAAA";
+
         return Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A5);
-                page.Margin(PdfDocumentBase.MarginCm, Unit.Centimetre);
+                page.MarginLeft(2.0f,  Unit.Centimetre);
+                page.MarginRight(2.0f, Unit.Centimetre);
+                page.MarginTop(1.8f,   Unit.Centimetre);
+                page.MarginBottom(1.8f, Unit.Centimetre);
                 page.DefaultTextStyle(x =>
-                    x.FontFamily(PdfDocumentBase.DefaultFont).FontSize(13));
+                    x.FontFamily(PdfDocumentBase.DefaultFont)
+                     .FontSize(FS_BODY)
+                     .FontColor(INK)
+                     .LineHeight(1.5f));
 
+                // ── Footer ───────────────────────────────────────────────
+                page.Footer()
+                    .BorderTop(0.5f).BorderColor(RULE)
+                    .PaddingTop(4)
+                    .Row(row =>
+                    {
+                        row.RelativeItem()
+                           .Text("POOC — ระบบบริหารจัดการกองทุน")
+                           .FontSize(FS_FOOTER).FontColor(GRAY);
+                        row.AutoItem()
+                           .Text(t =>
+                           {
+                               t.Span("หน้า ").FontSize(FS_FOOTER).FontColor(GRAY);
+                               t.CurrentPageNumber().FontSize(FS_FOOTER).FontColor(GRAY);
+                           });
+                    });
+
+                // ── Content ──────────────────────────────────────────────
                 page.Content().Column(col =>
                 {
-                    col.Item().AlignCenter().Text(title).FontSize(20).SemiBold();
-                    col.Item().AlignRight().Text($"เลขที่เอกสาร: {documentNo}");
-                    col.Item().AlignRight().Text($"วันที่: {date.ToString("dd MMMM yyyy", ThaiCulture)}");
-                    col.Item().PaddingTop(15).Text($"ได้รับจาก / จ่ายให้: {memberName}");
-                    col.Item().Text($"รายละเอียด: {description}");
-                    col.Item().PaddingTop(10).Border(1).Padding(8)
-                       .Text($"จำนวนเงิน {amount:N2} บาท").FontSize(16).SemiBold();
-                    col.Item().PaddingTop(35).Row(row =>
-                    {
-                        row.RelativeItem().AlignCenter()
-                           .Text("ลงชื่อ................................ ผู้รับเงิน/ผู้จ่ายเงิน");
-                        row.RelativeItem().AlignCenter()
-                           .Text("ลงชื่อ................................ ผู้ตรวจสอบ");
-                    });
-                });
+                    // ── ❶ หัวเอกสาร ──────────────────────────────────────
+                    col.Item().AlignCenter()
+                       .Text("ระบบบริหารจัดการกองทุน POOC")
+                       .FontSize(FS_SMALL).FontColor(GRAY);
 
-                PdfDocumentBase.ApplyStandardFooter(page);
+                    col.Item().PaddingTop(2).AlignCenter()
+                       .Text(title)
+                       .FontSize(FS_TITLE).Bold().FontColor(BLACK);
+
+                    col.Item().PaddingTop(3)
+                       .BorderBottom(1.5f).BorderColor(BLACK);
+                    col.Item().PaddingTop(1)
+                       .BorderBottom(0.4f).BorderColor(BLACK);
+
+                    // ── ❷ เลขที่ / วันที่ ─────────────────────────────────
+                    col.Item().PaddingTop(8).Row(row =>
+                    {
+                        row.AutoItem().PaddingRight(4)
+                           .Text("เลขที่เอกสาร").FontSize(FS_SMALL).FontColor(GRAY);
+                        row.AutoItem()
+                           .BorderBottom(0.5f).BorderColor(RULE)
+                           .PaddingBottom(1).PaddingRight(20)
+                           .Text(documentNo).FontSize(FS_SMALL).Bold();
+
+                        row.RelativeItem();
+
+                        row.AutoItem().PaddingRight(4)
+                           .Text("วันที่").FontSize(FS_SMALL).FontColor(GRAY);
+                        row.AutoItem()
+                           .BorderBottom(0.5f).BorderColor(RULE)
+                           .PaddingBottom(1)
+                           .Text(date.ToString("dd MMMM yyyy", ThaiCulture))
+                           .FontSize(FS_SMALL).Bold();
+                    });
+
+                    col.Item().PaddingTop(10);
+
+                    // ── ❸ ข้อมูลผู้รับ/จ่าย ───────────────────────────────
+                    col.Item()
+                       .BorderBottom(0.5f).BorderColor(BLACK)
+                       .PaddingBottom(2)
+                       .Text("ข้อมูลสมาชิก").FontSize(FS_BODY).Bold();
+
+                    col.Item().PaddingTop(5).Column(c =>
+                    {
+                        c.Item().Text(t =>
+                        {
+                            t.Span("ชื่อ-นามสกุล    ").FontSize(FS_SMALL).FontColor(GRAY);
+                            t.Span(memberName).FontSize(FS_BODY).Bold();
+                        });
+                    });
+
+                    col.Item().PaddingTop(10);
+
+                    // ── ❹ รายละเอียด ──────────────────────────────────────
+                    col.Item()
+                       .BorderBottom(0.5f).BorderColor(BLACK)
+                       .PaddingBottom(2)
+                       .Text("รายละเอียด").FontSize(FS_BODY).Bold();
+
+                    col.Item().PaddingTop(5)
+                       .Text(description).FontSize(FS_BODY);
+
+                    col.Item().PaddingTop(10);
+
+                    // ── ❺ กล่องจำนวนเงิน ─────────────────────────────────
+                    col.Item()
+                       .Border(0.8f).BorderColor(BLACK)
+                       .Padding(10)
+                       .Row(row =>
+                       {
+                           row.RelativeItem()
+                              .Text("จำนวนเงินทั้งสิ้น")
+                              .FontSize(FS_BODY).FontColor(GRAY);
+                           row.AutoItem()
+                              .Text($"{amount:N2} บาท")
+                              .FontSize(FS_TITLE).Bold().FontColor(BLACK);
+                       });
+
+                    col.Item().PaddingTop(20);
+
+                    // ── ❻ ลายเซ็น ─────────────────────────────────────────
+                    col.Item().Row(row =>
+                    {
+                        // ผู้รับเงิน
+                        row.RelativeItem().PaddingHorizontal(4).Column(c =>
+                        {
+                            c.Item().PaddingTop(24).PaddingHorizontal(4)
+                             .BorderBottom(0.5f).BorderColor("#888888");
+                            c.Item().PaddingTop(4).AlignCenter()
+                             .Text("(................................................)")
+                             .FontSize(FS_SMALL);
+                            c.Item().AlignCenter()
+                             .Text("ผู้รับเงิน / ผู้จ่ายเงิน")
+                             .FontSize(FS_SMALL - 0.5f).FontColor(GRAY);
+                            c.Item().PaddingTop(4).AlignCenter()
+                             .Text("วันที่ ......../......../.........")
+                             .FontSize(FS_SMALL - 1f).FontColor(GRAY);
+                        });
+
+                        row.ConstantItem(16);
+
+                        // ผู้ตรวจสอบ
+                        row.RelativeItem().PaddingHorizontal(4).Column(c =>
+                        {
+                            c.Item().PaddingTop(24).PaddingHorizontal(4)
+                             .BorderBottom(0.5f).BorderColor("#888888");
+                            c.Item().PaddingTop(4).AlignCenter()
+                             .Text("(................................................)")
+                             .FontSize(FS_SMALL);
+                            c.Item().AlignCenter()
+                             .Text("ผู้ตรวจสอบ")
+                             .FontSize(FS_SMALL - 0.5f).FontColor(GRAY);
+                            c.Item().PaddingTop(4).AlignCenter()
+                             .Text("วันที่ ......../......../.........")
+                             .FontSize(FS_SMALL - 1f).FontColor(GRAY);
+                        });
+                    });
+
+                    col.Item().PaddingTop(12)
+                       .BorderTop(0.5f).BorderColor(RULE);
+                    col.Item().PaddingTop(4).AlignCenter()
+                       .Text("เอกสารนี้ออกโดยระบบอัตโนมัติ ไม่ต้องมีลายเซ็นต้นฉบับ")
+                       .FontSize(FS_SMALL - 1f).FontColor(GRAY).Italic();
+                });
             });
         });
     }
 
-    // ─── PDF: รายงานบัญชี ─────────────────────────────────────────────────
+        // ─── PDF: รายงานบัญชี ─────────────────────────────────────────────────
     private static IDocument CreateAccountingReportDocument(AccountingIndexViewModel report)
     {
         return Document.Create(container =>
