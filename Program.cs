@@ -21,7 +21,7 @@ var dbOptions = (DbContextOptionsBuilder options) =>
                .EnableSensitiveDataLogging();
     }
 };
-builder.Services.AddDbContext<ApplicationDbContext>(dbOptions);
+builder.Services.AddDbContextPool<ApplicationDbContext>(dbOptions, poolSize: 2);
 
 // ── Authentication ──
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -47,6 +47,11 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddHttpContextAccessor();
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 10 * 1024 * 1024;
+});
+
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
@@ -59,7 +64,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<POOC.Services.LoginRateLimiter>();
 
 // Auto backup
-builder.Services.AddHostedService<POOC.Services.SqliteBackupService>();
+// builder.Services.AddHostedService<POOC.Services.SqliteBackupService>();
 
 var invariantCulture = System.Globalization.CultureInfo.InvariantCulture;
 System.Globalization.CultureInfo.DefaultThreadCurrentCulture = invariantCulture;
