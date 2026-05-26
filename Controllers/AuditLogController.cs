@@ -9,7 +9,6 @@ public class AuditLogController : Controller
 {
     private readonly ApplicationDbContext _context;
     public AuditLogController(ApplicationDbContext context) => _context = context;
-
     public IActionResult Index() => View();
 
     // GET: /AuditLog/List?page=1&pageSize=50&search=...&actionFilter=...&entity=...&fromDate=...&toDate=...
