@@ -20,7 +20,7 @@
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - **Backend:** ASP.NET Core 9 MVC, C# 13
 - **ORM:** Entity Framework Core 9 (SQLite / SQL Server)
